@@ -1,0 +1,11 @@
+target/
+archivos/
+datos-h2/
+logs/
+*.log
+.idea/
+*.iml
+.vscode/
+
+# El frontend compilado (src/main/resources/static) SÍ se versiona para que
+# la aplicación funcione al clonar y ejecutar desde IntelliJ sin instalar Node.
