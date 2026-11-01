@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Registro de eventos: consola en todos los perfiles; archivo rotativo en prod. -->
+<configuration>
+  <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+  <property name="PATRON" value="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"/>
+
+  <appender name="CONSOLA" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder><pattern>${PATRON}</pattern></encoder>
+  </appender>
+
+  <springProfile name="prod">
+    <appender name="ARCHIVO" class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <file>logs/aplicacion.log</file>
+      <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <fileNamePattern>logs/aplicacion.%d{yyyy-MM-dd}.log</fileNamePattern>
+        <maxHistory>30</maxHistory>
+      </rollingPolicy>
+      <encoder><pattern>${PATRON}</pattern></encoder>
+    </appender>
+    <root level="WARN">
+      <appender-ref ref="CONSOLA"/>
+      <appender-ref ref="ARCHIVO"/>
+    </root>
+  </springProfile>
+
+  <springProfile name="!prod">
+    <root level="INFO">
+      <appender-ref ref="CONSOLA"/>
+    </root>
+  </springProfile>
+</configuration>

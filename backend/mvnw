@@ -1,0 +1,29 @@
+#!/bin/sh
+# Maven sin instalar nada (macOS / Linux). La primera vez descarga Apache Maven en
+# ~/.m2/wrapper y después lo reutiliza. Requiere Java 17 o superior.
+#   ./mvnw test
+#   ./mvnw spring-boot:run -Dspring-boot.run.profiles=h2,demo
+set -e
+MAVEN_VERSION=3.9.9
+WRAPPER_DIR="$HOME/.m2/wrapper"
+MAVEN_HOME="$WRAPPER_DIR/apache-maven-$MAVEN_VERSION"
+MAVEN_URL="https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/$MAVEN_VERSION/apache-maven-$MAVEN_VERSION-bin.tar.gz"
+
+if [ -z "$JAVA_HOME" ] && ! command -v java >/dev/null 2>&1; then
+  echo "No se encontró Java. Instala el JDK 17 (https://adoptium.net) y vuelve a intentarlo." >&2
+  exit 1
+fi
+
+if [ ! -x "$MAVEN_HOME/bin/mvn" ]; then
+  echo "Descargando Apache Maven $MAVEN_VERSION (solo la primera vez)..."
+  mkdir -p "$WRAPPER_DIR"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$MAVEN_URL" -o "$WRAPPER_DIR/maven.tar.gz"
+  else
+    wget -q "$MAVEN_URL" -O "$WRAPPER_DIR/maven.tar.gz"
+  fi
+  tar -xzf "$WRAPPER_DIR/maven.tar.gz" -C "$WRAPPER_DIR"
+  rm -f "$WRAPPER_DIR/maven.tar.gz"
+fi
+
+exec "$MAVEN_HOME/bin/mvn" "$@"
