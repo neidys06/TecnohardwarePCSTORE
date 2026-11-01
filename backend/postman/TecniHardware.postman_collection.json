@@ -1,0 +1,522 @@
+{
+  "info": {
+    "name": "TecniHardware · API del servicio técnico",
+    "description": "Pruebas de la API REST. Ejecutar con Newman:\nnewman run postman/TecniHardware.postman_collection.json -e postman/local.postman_environment.json\nRequiere la aplicación en marcha con el perfil demo (admin / Tecni2026).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Guarda el token CSRF que el servidor deja en la cookie XSRF-TOKEN",
+          "const t = pm.cookies.get('XSRF-TOKEN');",
+          "if (t) pm.collectionVariables.set('xsrf', t);",
+          "pm.test('Responde en menos de 1 s', () => pm.expect(pm.response.responseTime).to.be.below(1000));"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "xsrf",
+      "value": ""
+    },
+    {
+      "key": "idCliente",
+      "value": ""
+    },
+    {
+      "key": "usuarioNuevo",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Sesión sin iniciar → null",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/sesion",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "sesion"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Sin sesión responde null', () => pm.expect(pm.response.text()).to.eql('null'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Estado sin sesión → 401",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/estado",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "estado"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 401', () => pm.response.to.have.status(401));",
+              "pm.test('Mensaje para el usuario', () => pm.expect(pm.response.json().mensaje).to.include('Inicia sesión'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login con clave errada → 401",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{xsrf}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"usuario\": \"admin\",\n  \"contrasena\": \"clave-mala\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login administradora",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{xsrf}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"usuario\": \"admin\",\n  \"contrasena\": \"{{claveAdmin}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Rol ADMINISTRADOR', () => pm.expect(pm.response.json().rol).to.eql('ADMINISTRADOR'));",
+              "pm.test('Cookie de sesión', () => pm.expect(pm.cookies.has('th_sesion')).to.be.true);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Estado de la interfaz",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/estado",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "estado"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const e = pm.response.json();",
+              "pm.test('Rol admin', () => pm.expect(e.sesion.rol).to.eql('admin'));",
+              "pm.test('Trae clientes y órdenes', () => { pm.expect(e.clientes).to.be.an('array'); pm.expect(e.ordenes).to.be.an('array'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Registrar cliente (RF-01)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('usuarioNuevo', 'postman' + Date.now().toString().slice(-6));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 201', () => pm.response.to.have.status(201));",
+              "const r = pm.response.json();",
+              "pm.test('Contraseña temporal de 8 caracteres', () => pm.expect(r.contrasenaTemporal).to.match(/^[A-Za-z]{4}[2-9]{4}$/));",
+              "pm.collectionVariables.set('idCliente', r.cliente.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{xsrf}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/clientes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "clientes"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Cliente de Postman\",\n  \"telefono\": \"310 555 0000\",\n  \"usuario\": \"{{usuarioNuevo}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Usuario repetido → 409",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{xsrf}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/clientes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "clientes"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Otro cliente\",\n  \"usuario\": \"{{usuarioNuevo}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 409', () => pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Buscar clientes (RF-12)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/clientes?q=postman",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "clientes"
+          ],
+          "query": [
+            {
+              "key": "q",
+              "value": "postman"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Encuentra al cliente nuevo', () => pm.expect(pm.response.json().length).to.be.above(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Registrar equipo «Otros» (RF-03)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{xsrf}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/equipos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "equipos"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idCliente\": \"{{idCliente}}\",\n  \"tipo\": \"Otros\",\n  \"tipoOtro\": \"Consola de videojuegos\",\n  \"marcaModelo\": \"PlayStation 5\",\n  \"periodo\": 6\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 201', () => pm.response.to.have.status(201));",
+              "pm.test('Tipo escrito a mano', () => pm.expect(pm.response.json().esOtro).to.be.true);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Periodo inválido → 422",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{xsrf}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/equipos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "equipos"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idCliente\": \"{{idCliente}}\",\n  \"tipo\": \"Portátil\",\n  \"marcaModelo\": \"HP 240 G8\",\n  \"periodo\": 5\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 422', () => pm.response.to.have.status(422));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mantenimientos (RF-15)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/mantenimientos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "mantenimientos"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Órdenes pendientes de autorización",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/ordenes?estado=PENDIENTE_AUTORIZACION",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "ordenes"
+          ],
+          "query": [
+            {
+              "key": "estado",
+              "value": "PENDIENTE_AUTORIZACION"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Todas en el estado pedido', () => pm.response.json().forEach(o => pm.expect(o.estado).to.eql('PENDIENTE_AUTORIZACION')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cerrar sesión",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{xsrf}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/logout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "logout"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 204', () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
