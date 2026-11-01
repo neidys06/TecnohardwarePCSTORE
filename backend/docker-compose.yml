@@ -1,0 +1,49 @@
+# Orquestación local: MySQL 8 + la aplicación.
+#   cd .. && npm run build:api && cd backend
+#   JWT_SECRETO=$(openssl rand -hex 32) docker compose up -d --build
+#   Abrir http://localhost:8080  (admin / Temporal2026 → pide cambiarla)
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: tecnihardware
+      MYSQL_USER: th_app
+      MYSQL_PASSWORD: ${DB_PASS:-cambiar-esta-clave}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS:-cambiar-esta-clave-root}
+      TZ: America/Bogota
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_spanish_ci"]
+    volumes:
+      - mysql-datos:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [red]
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:mysql://db:3306/tecnihardware?serverTimezone=America/Bogota
+      DB_USER: th_app
+      DB_PASS: ${DB_PASS:-cambiar-esta-clave}
+      JWT_SECRETO: ${JWT_SECRETO:?Define JWT_SECRETO (mínimo 32 caracteres)}
+      ADMIN_CLAVE: ${ADMIN_CLAVE:-Temporal2026}
+      # Sin HTTPS delante (solo pruebas locales) la cookie de sesión no puede ser «Secure».
+      APP_SEGURIDAD_COOKIE_SEGURA: ${COOKIE_SEGURA:-false}
+    volumes:
+      - archivos:/var/lib/tecnihardware/archivos
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [red]
+
+volumes:
+  mysql-datos:
+  archivos:
+
+networks:
+  red:

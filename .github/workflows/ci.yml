@@ -1,0 +1,50 @@
+# Integración continua: en cada push o pull request a main se compila el
+# frontend, se ejecutan las pruebas del backend con cobertura y se construye la imagen.
+name: CI · Build y pruebas
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Node 22 para el frontend
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Compilar el frontend (queda en backend/src/main/resources/static)
+        run: |
+          npm ci
+          npm run lint
+          npm run build:api
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: maven
+
+      - name: Pruebas y cobertura (JUnit 5 + JaCoCo)
+        working-directory: backend
+        run: mvn -B clean verify
+
+      - name: Publicar reporte de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: backend/target/site/jacoco/
+
+      - name: Construir la imagen Docker
+        working-directory: backend
+        run: docker build -t tecnihardware/servicio-tecnico:${{ github.sha }} .
