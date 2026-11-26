@@ -16,7 +16,6 @@ import { Logo } from '@/components/app/brand'
 import { UserAvatar } from '@/components/app/ui-kit'
 import { Button } from '@/components/ui/button'
 import { EstadoConexion, IndicadorSinConexion } from '@/components/app/conexion'
-import { BotonNavidad, ModoNavidad } from '@/components/app/navidad'
 import { isOpen, semaforo } from '@/lib/domain'
 import { useApp } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -64,7 +63,6 @@ export function AdminLayout() {
 
   return (
     <div className="min-h-dvh lg:flex">
-      <ModoNavidad />
       {/* Escritorio: menú lateral */}
       <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-4 pt-6 pb-4 lg:flex">
         <Link to="/admin/clientes" className="px-2 pb-6" aria-label="Inicio">
@@ -160,7 +158,6 @@ export function AdminLayout() {
           </form>
           <div className="flex-1" />
           <IndicadorSinConexion />
-          <BotonNavidad />
           <Button variant="secondary" size="sm" onClick={() => openDialog('notificaciones')}>
             <Bell />
             Notificaciones
@@ -196,7 +193,6 @@ export function AdminLayout() {
               </NavLink>
             ))}
           </nav>
-          <BotonNavidad compacto />
           <NotifIcon count={counts.notifs} onClick={() => openDialog('notificaciones')} />
           <Link to="/admin/cuenta" aria-label="Mi cuenta" className="ml-1">
             <UserAvatar name={sesion.nombre} photo={db.fotoAdmin} />
@@ -210,7 +206,6 @@ export function AdminLayout() {
           </Link>
           <div className="flex-1" />
           <IndicadorSinConexion />
-          <BotonNavidad compacto />
           <NotifIcon count={counts.notifs} onClick={() => openDialog('notificaciones')} />
         </header>
 

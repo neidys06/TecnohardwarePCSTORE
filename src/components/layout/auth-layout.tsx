@@ -1,15 +1,10 @@
 import { Outlet } from 'react-router'
 
 import { BrandPanel } from '@/components/app/brand'
-import { BotonNavidad, ModoNavidad } from '@/components/app/navidad'
 
 export function AuthLayout() {
   return (
-    <div className="relative min-h-dvh bg-card lg:grid lg:h-dvh lg:grid-cols-2">
-      <ModoNavidad />
-      <div className="absolute top-3 left-3 z-40 flex rounded-lg bg-card/90">
-        <BotonNavidad compacto />
-      </div>
+    <div className="min-h-dvh bg-card lg:grid lg:h-dvh lg:grid-cols-2">
       <div className="p-3 md:mx-auto md:max-w-[620px] md:p-4 lg:order-2 lg:mx-0 lg:h-dvh lg:max-w-none">
         <div className="lg:hidden">
           <BrandPanel compact />
