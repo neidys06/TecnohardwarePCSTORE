@@ -109,15 +109,12 @@ class OrdenServiceTest {
     }
 
     @Test
-    void diagnostico_sinFotosDeIngreso_seRechaza() {
+    void trabajoAutorizado_proponeLoQueSeEscribioEnElDiagnostico() {
+        // Acta 6: el trabajo realizado parte de lo que el cliente autorizó, sin volver a escribirlo
         OrdenServicio o = OrdenServicio.abrir(equipo, "No enciende", LocalDate.now(reloj), admin, LocalDateTime.now(reloj));
-        when(ordenes.bloquear(139L)).thenReturn(Optional.of(o));
+        o.setDiagnostico("  Fuente de poder dañada, se reemplaza  ");
 
-        assertThatThrownBy(() -> servicio.registrarDiagnostico("OS-0139",
-                new DiagnosticoRequest("Fuente de poder dañada", new BigDecimal("95000")), 1L))
-                .isInstanceOf(ReglaDeNegocioException.class)
-                .hasMessage("Antes de pedir la autorización adjunta las fotos de ingreso.");
-        assertThat(o.getEstado()).isEqualTo(EstadoOrden.EN_DIAGNOSTICO);
+        assertThat(o.trabajoAutorizado()).isEqualTo("Fuente de poder dañada, se reemplaza");
     }
 
     @Test

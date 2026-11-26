@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -172,9 +173,9 @@ class FlujoCompletoIntegracionTest {
                 .param("momento", "PROCESO").with(csrf()).cookie(admin))
                 .andExpect(status().isUnprocessableEntity());
 
-        // Mantenimiento sin fotos de salida → rechazado (RF-08)
+        // Trabajo realizado demasiado corto → rechazado (RF-07)
         mvc.perform(multipart("/api/ordenes/" + codigo + "/mantenimiento")
-                .param("trabajo", "Cambio de puerto HDMI y del ventilador").with(csrf()).cookie(admin))
+                .param("trabajo", "Listo").with(csrf()).cookie(admin))
                 .andExpect(status().isUnprocessableEntity());
 
         mvc.perform(multipart("/api/ordenes/" + codigo + "/mantenimiento")
@@ -294,7 +295,7 @@ class FlujoCompletoIntegracionTest {
     }
 
     @Test
-    @DisplayName("Acta 5: usuario automático, quién recibe y entrega, y fotos de ingreso después")
+    @DisplayName("Acta 5: usuario automático, quién recibe y entrega, y orden sin fotos de ingreso")
     void cambiosDeLaReunion5() throws Exception {
         // El usuario se genera solo a partir del nombre; si ya existe, se numera
         JsonNode uno = postJson("/api/clientes", admin,
@@ -317,7 +318,7 @@ class FlujoCompletoIntegracionTest {
                 .param("recibio", "Pedro Pérez").with(csrf()).cookie(admin))
                 .andExpect(status().isUnprocessableEntity());
 
-        // Sin fotos de ingreso la orden se crea; se exigen antes del diagnóstico
+        // Sin fotos de ingreso la orden se crea y, desde el Acta 6, el diagnóstico tampoco las exige
         MvcResult r = mvc.perform(multipart("/api/ordenes").param("idEquipo", equipo)
                 .param("falla", "No enciende el equipo").param("recibio", "gloria rojas rivera")
                 .with(csrf()).cookie(admin))
@@ -327,18 +328,69 @@ class FlujoCompletoIntegracionTest {
                 .andReturn();
         String codigo = leer(r).get("codigo").asText();
         postJson("/api/ordenes/" + codigo + "/diagnostico", admin,
-                Map.of("diagnostico", "Fuente de poder dañada", "costo", 95000), 422);
-        mvc.perform(multipart("/api/ordenes/" + codigo + "/evidencias")
-                .file(new MockMultipartFile("fotos", "ingreso.png", "image/png", PNG))
-                .param("momento", "INGRESO").with(csrf()).cookie(admin))
-                .andExpect(status().isCreated());
-        postJson("/api/ordenes/" + codigo + "/diagnostico", admin,
                 Map.of("diagnostico", "Fuente de poder dañada", "costo", 95000), 200);
 
         // La lista del personal llega a la interfaz de la administradora
         mvc.perform(get("/api/estado").cookie(admin))
                 .andExpect(jsonPath("$.personal", hasSize(2)))
                 .andExpect(jsonPath("$.personal[1]").value("Dichel Susana Rojas Rivera"));
+    }
+
+    @Test
+    @DisplayName("Acta 6: cuenta única por cliente, entrega conjunta, fotos opcionales y trabajo autorizado")
+    void cambiosDeLaReunion6() throws Exception {
+        String[] cliente = clienteConCuenta();
+        String eq1 = crearEquipo(cliente[0]);
+        String eq2 = postJson("/api/equipos", admin, Map.of("idCliente", Long.valueOf(cliente[0]), "tipo", "Portátil",
+                "marcaModelo", "Lenovo IdeaPad 3"), 201).get("id").asText();
+
+        // Dos equipos del mismo cliente, sin ninguna foto en todo el proceso
+        String[] codigos = new String[2];
+        String[] equipos = { eq1, eq2 };
+        for (int i = 0; i < 2; i++) {
+            codigos[i] = leer(mvc.perform(multipart("/api/ordenes").param("idEquipo", equipos[i])
+                    .param("falla", "No enciende el equipo").param("recibio", "Gloria Rojas Rivera")
+                    .with(csrf()).cookie(admin)).andExpect(status().isCreated()).andReturn()).get("codigo").asText();
+            postJson("/api/ordenes/" + codigos[i] + "/diagnostico", admin,
+                    Map.of("diagnostico", "Fuente de poder dañada, se reemplaza", "costo", 100000 * (i + 1)), 200);
+            postJson("/api/ordenes/" + codigos[i] + "/autorizacion", admin, Map.of("decision", "AUTORIZA"), 200);
+        }
+
+        // La cuenta suma lo de los dos equipos aunque todavía no estén listos
+        mvc.perform(get("/api/ordenes/cuenta").param("idCliente", cliente[0]).cookie(admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ordenes", hasSize(2)))
+                .andExpect(jsonPath("$.total").value(300000))
+                .andExpect(jsonPath("$.listasParaEntregar").value(0));
+
+        // Sin escribir el trabajo se registra lo autorizado en el diagnóstico; sin fotos de salida
+        mvc.perform(multipart("/api/ordenes/" + codigos[0] + "/mantenimiento").with(csrf()).cookie(admin))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.estado").value("FINALIZADA"))
+                .andExpect(jsonPath("$.mantenimiento.trabajo").value("Fuente de poder dañada, se reemplaza"));
+
+        // Entregar juntas exige que todas estén finalizadas: no se entrega ninguna
+        postJson("/api/ordenes/entrega-conjunta", admin, Map.of("codigos", List.of(codigos[0], codigos[1]),
+                "recibidoPor", "Carlos Mendoza", "entregadoPor", "Gloria Rojas Rivera"), 422);
+
+        mvc.perform(multipart("/api/ordenes/" + codigos[1] + "/mantenimiento")
+                .param("trabajo", "Cambio de la fuente de poder y limpieza").with(csrf()).cookie(admin))
+                .andExpect(status().isCreated());
+        JsonNode e = postJson("/api/ordenes/entrega-conjunta", admin, Map.of("codigos", List.of(codigos[0], codigos[1]),
+                "recibidoPor", "Carlos Mendoza", "entregadoPor", "Dichel Susana Rojas Rivera"), 200);
+        assertThat(e.get("ordenes")).hasSize(2);
+        assertThat(e.get("totalCobrado").decimalValue()).isEqualByComparingTo("300000");
+        // Cada orden queda anotada con la entrega conjunta (base del recibo de entrega)
+        String conjunta = "Entrega conjunta (" + codigos[0] + ", " + codigos[1] + ")";
+        for (JsonNode orden : e.get("ordenes")) {
+            JsonNode h = orden.get("historial");
+            assertThat(h.get(h.size() - 1).get("observacion").asText()).isEqualTo(conjunta);
+        }
+
+        // Ya entregadas, la cuenta queda en cero
+        mvc.perform(get("/api/ordenes/cuenta").param("idCliente", cliente[0]).cookie(admin))
+                .andExpect(jsonPath("$.ordenes", hasSize(0)))
+                .andExpect(jsonPath("$.total").value(0));
     }
 
     @Test
