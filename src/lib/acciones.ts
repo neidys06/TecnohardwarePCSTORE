@@ -6,6 +6,20 @@
  *    de modo que las reglas de negocio y los permisos se validan en el servidor.
  */
 import { api, dataUrlABlob, formulario, MODO_API } from './api'
+import {
+  aplicar,
+  borrarCopiaEstado,
+  encolar,
+  esFallaDeRed,
+  esTemporal,
+  hayPendientes,
+  marcarConexion,
+  nuevoId,
+  sincronizar,
+  sinConexion,
+  traducir,
+  type Operacion,
+} from './sin-conexion'
 import { fmtDate, HOY, money, nowStamp } from './dates'
 import { ESTADOS, usuarioDesdeNombre } from './domain'
 import { ADMIN } from './seed'
@@ -46,6 +60,8 @@ export interface Acciones {
     d: { trabajo: string; repuestos: [string, number][]; responsable: string; fotos: string[] },
   ): Promise<void>
   entregar(oid: string, recibidoPor: string, entregadoPor: string): Promise<void>
+  /** Acta 6: entrega varios equipos del mismo cliente en un solo pago (cuenta única). */
+  entregarVarias(oids: string[], recibidoPor: string, entregadoPor: string): Promise<void>
   anotar(oid: string, texto: string): Promise<void>
   registrarRecordatorio(eid: string): Promise<void>
   leerNotificaciones(id?: string): Promise<void>
@@ -63,6 +79,8 @@ export interface CtxAcciones {
   setRole: (r: Rol | null) => void
   /** Solo en modo API: vuelve a pedir el estado al servidor. */
   recargar: () => Promise<void>
+  /** Nombre de quien inició sesión (para el historial de lo registrado sin conexión). */
+  nombreUsuario?: () => string
 }
 
 /** Cuentas del prototipo. En modo API la validación ocurre en el servidor. */
@@ -253,6 +271,14 @@ function local({ setDb, getDb, setRole }: CtxAcciones): Acciones {
         `Entregado por ${quien} · recibido por ${r}`,
       )
     },
+    async entregarVarias(oids, r, quien) {
+      for (const oid of oids)
+        orden(
+          oid,
+          { estado: 'ent', entrega: fmtDate(HOY), entrego: quien },
+          `Entregado por ${quien} · recibido por ${r}${oids.length > 1 ? ` · entrega conjunta (${oids.join(', ')})` : ''}`,
+        )
+    },
     async anotar(oid, texto) {
       orden(oid, {}, texto)
     },
@@ -396,6 +422,8 @@ function remoto(ctx: CtxAcciones): Acciones {
     },
     entregar: (oid, recibidoPor, entregadoPor) =>
       post(`/ordenes/${oid}/entrega`, { recibidoPor, entregadoPor }),
+    entregarVarias: (codigos, recibidoPor, entregadoPor) =>
+      post('/ordenes/entrega-conjunta', { codigos, recibidoPor, entregadoPor }),
     anotar: (oid, texto) => post(`/ordenes/${oid}/notas`, { texto }),
     registrarRecordatorio: (eid) => post(`/equipos/${eid}/recordatorio`),
     leerNotificaciones: (id) => post('/notificaciones/leer', id ? { id: Number(id) } : {}),
@@ -437,7 +465,176 @@ function remoto(ctx: CtxAcciones): Acciones {
   }
 }
 
-export const crearAcciones = (ctx: CtxAcciones) => (MODO_API ? remoto(ctx) : local(ctx))
+// ---------------------------------------------------------------------------
+// Modo API sin conexión (Acta 6): los cambios se guardan en una cola y se envían al volver
+// la conexión. Ver lib/sin-conexion.ts.
+// ---------------------------------------------------------------------------
+const NECESITA_CONEXION =
+  'Sin conexión: esta acción necesita internet. Los registros, órdenes, diagnósticos, fotos, mantenimientos y entregas sí se pueden hacer; se envían solos cuando vuelva la conexión.'
+
+function conCola(r: Acciones, ctx: CtxAcciones, nombreUsuario: () => string): Acciones {
+  const { setDb, recargar } = ctx
+  /** Hay que usar la cola si no hay red, si ya hay cambios esperando (para no desordenarlos) o si algún id es temporal. */
+  const usarCola = (...ids: (string | undefined)[]) =>
+    sinConexion() || hayPendientes() || ids.some((i) => i && esTemporal(traducir(i)))
+  /** Intenta en el servidor; si la red falla, guarda la operación en la cola. */
+  async function hacer<T>(
+    ids: (string | undefined)[],
+    enLinea: () => Promise<T>,
+    op: () => Operacion,
+    resultado: T,
+  ): Promise<T> {
+    if (!usarCola(...ids)) {
+      try {
+        const v = await enLinea()
+        marcarConexion(true)
+        return v
+      } catch (e) {
+        if (!esFallaDeRed(e)) throw e
+        marcarConexion(false)
+      }
+    }
+    const o = op()
+    await encolar(o)
+    setDb((d) => aplicar(d, o))
+    if (!sinConexion()) void sincronizar().then(() => recargar().catch(() => {}))
+    return resultado
+  }
+  const soloEnLinea =
+    <A extends unknown[], T>(f: (...a: A) => Promise<T>) =>
+    async (...a: A) => {
+      if (sinConexion()) throw new Error(NECESITA_CONEXION)
+      return f(...a)
+    }
+  const t = (id: string) => traducir(id)
+
+  return {
+    ...r,
+    cerrarSesion: async () => {
+      borrarCopiaEstado()
+      await r.cerrarSesion()
+    },
+    restablecerContrasena: soloEnLinea(r.restablecerContrasena),
+    responderAutorizacion: soloEnLinea((oid: string, ok: boolean) =>
+      r.responderAutorizacion(t(oid), ok),
+    ),
+    pedirAdicional: soloEnLinea((oid: string, d: string, c: number) =>
+      r.pedirAdicional(t(oid), d, c),
+    ),
+    responderAdicional: soloEnLinea((oid: string, ok: boolean) => r.responderAdicional(t(oid), ok)),
+    registrarRecordatorio: soloEnLinea((eid: string) => r.registrarRecordatorio(t(eid))),
+    guardarPlantilla: soloEnLinea(r.guardarPlantilla),
+    guardarUmbral: soloEnLinea(r.guardarUmbral),
+    guardarValorDiagnostico: soloEnLinea(r.guardarValorDiagnostico),
+    subirListaPdf: soloEnLinea(r.subirListaPdf),
+    guardarFotoPerfil: soloEnLinea(r.guardarFotoPerfil),
+    cambiarContrasena: soloEnLinea(r.cambiarContrasena),
+    guardarCliente(id, c) {
+      if (id)
+        return hacer(
+          [id],
+          () => r.guardarCliente(t(id), c),
+          () => ({ tipo: 'editar-cliente', id, nombre: c.nombre, tel: c.tel, cedula: c.cedula }),
+          { id },
+        )
+      const tmp = nuevoId('c')
+      return hacer(
+        [],
+        () => r.guardarCliente(undefined, c),
+        () => ({ tipo: 'cliente', tmp, nombre: c.nombre, tel: c.tel, cedula: c.cedula }),
+        { id: tmp },
+      )
+    },
+    crearEquipo(cid, e) {
+      const tmp = nuevoId('e')
+      return hacer(
+        [cid],
+        () => r.crearEquipo(t(cid), e),
+        () => ({ tipo: 'equipo', tmp, cid, equipo: e }),
+        undefined,
+      )
+    },
+    guardarPeriodo(eid, periodo) {
+      return hacer(
+        [eid],
+        () => r.guardarPeriodo(t(eid), periodo),
+        () => ({ tipo: 'periodo', eid, periodo }),
+        undefined,
+      )
+    },
+    crearOrden(d) {
+      const tmp = nuevoId('OS')
+      return hacer(
+        [d.eq],
+        () => r.crearOrden({ ...d, eq: t(d.eq) }),
+        () => ({
+          tipo: 'orden',
+          tmp,
+          eq: d.eq,
+          falla: d.falla,
+          accesorios: d.accesorios,
+          recibio: d.recibio,
+          fotos: d.fotos,
+          por: nombreUsuario(),
+        }),
+        tmp,
+      )
+    },
+    registrarDiagnostico(oid, diag, costo) {
+      return hacer(
+        [oid],
+        () => r.registrarDiagnostico(t(oid), diag, costo),
+        () => ({ tipo: 'diagnostico', oid, diag, costo }),
+        undefined,
+      )
+    },
+    agregarEvidencia(oid, momento, fotos, nota) {
+      return hacer(
+        [oid],
+        () => r.agregarEvidencia(t(oid), momento, fotos, nota),
+        () => ({ tipo: 'evidencia', oid, momento, fotos, nota }),
+        undefined,
+      )
+    },
+    registrarMantenimiento(oid, d) {
+      return hacer(
+        [oid],
+        () => r.registrarMantenimiento(t(oid), d),
+        () => ({ tipo: 'mantenimiento', oid, ...d }),
+        undefined,
+      )
+    },
+    entregar(oid, recibidoPor, entregadoPor) {
+      return hacer(
+        [oid],
+        () => r.entregar(t(oid), recibidoPor, entregadoPor),
+        () => ({ tipo: 'entrega', oids: [oid], recibidoPor, entregadoPor }),
+        undefined,
+      )
+    },
+    entregarVarias(oids, recibidoPor, entregadoPor) {
+      return hacer(
+        oids,
+        () => r.entregarVarias(oids.map(t), recibidoPor, entregadoPor),
+        () => ({ tipo: 'entrega', oids, recibidoPor, entregadoPor }),
+        undefined,
+      )
+    },
+    anotar(oid, texto) {
+      return hacer(
+        [oid],
+        () => r.anotar(t(oid), texto),
+        () => ({ tipo: 'nota', oid, texto }),
+        undefined,
+      )
+    },
+  }
+}
+
+export const crearAcciones = (ctx: CtxAcciones) =>
+  MODO_API
+    ? conCola(remoto(ctx), ctx, () => ctx.nombreUsuario?.() ?? 'la administradora')
+    : local(ctx)
 
 /** Mensaje para mostrar al usuario a partir de cualquier error. */
 export const mensajeError = (e: unknown) =>

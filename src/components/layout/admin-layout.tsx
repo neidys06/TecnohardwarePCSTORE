@@ -15,6 +15,7 @@ import {
 import { Logo } from '@/components/app/brand'
 import { UserAvatar } from '@/components/app/ui-kit'
 import { Button } from '@/components/ui/button'
+import { EstadoConexion, IndicadorSinConexion } from '@/components/app/conexion'
 import { isOpen, semaforo } from '@/lib/domain'
 import { useApp } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -156,6 +157,7 @@ export function AdminLayout() {
             />
           </form>
           <div className="flex-1" />
+          <IndicadorSinConexion />
           <Button variant="secondary" size="sm" onClick={() => openDialog('notificaciones')}>
             <Bell />
             Notificaciones
@@ -203,10 +205,12 @@ export function AdminLayout() {
             <Logo size="sm" />
           </Link>
           <div className="flex-1" />
+          <IndicadorSinConexion />
           <NotifIcon count={counts.notifs} onClick={() => openDialog('notificaciones')} />
         </header>
 
         <main className="mx-auto flex w-full max-w-[1240px] flex-1 flex-col gap-5 px-4 pt-4 pb-28 md:gap-6 md:px-6 md:pt-6 md:pb-12 lg:px-8 lg:pt-8">
+          <EstadoConexion />
           <Outlet />
         </main>
       </div>

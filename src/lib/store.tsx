@@ -3,6 +3,16 @@ import * as React from 'react'
 import { crearAcciones, type Acciones } from './acciones'
 import { api, ApiError, MODO_API } from './api'
 import { seedDB } from './seed'
+import {
+  aplicarCola,
+  cargarCola,
+  copiaEstado,
+  esFallaDeRed,
+  guardarCopiaEstado,
+  hayPendientes,
+  marcarConexion,
+  sincronizar,
+} from './sin-conexion'
 import { aplicarColor, PALETA } from './temas'
 import type { DB, Rol } from './types'
 
@@ -45,6 +55,8 @@ type AppState = {
   dialog: DialogState
   openDialog: (kind: DialogKind, params?: Record<string, string>) => void
   closeDialog: () => void
+  /** Modo API: vuelve a pedir el estado al servidor (p. ej. después de sincronizar). */
+  recargar: () => Promise<void>
 }
 
 const AppContext = React.createContext<AppState | null>(null)
@@ -102,6 +114,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [cargando, setCargando] = React.useState(MODO_API)
   const [dialog, setDialog] = React.useState<DialogState>(null)
   const dbRef = React.useRef(db)
+  const sesionRef = React.useRef(sesion)
+  React.useEffect(() => {
+    sesionRef.current = sesion
+  }, [sesion])
   React.useEffect(() => {
     dbRef.current = db
   }, [db])
@@ -114,28 +130,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!MODO_API) save(() => sessionStorage, ROLE_KEY, role)
   }, [role])
 
-  const aplicarEstado = React.useCallback((e: Estado) => {
+  const aplicarEstado = React.useCallback((e: Estado, copia = true) => {
     const { sesion: s, ...datos } = e
+    // Acta 6: la última copia del estado permite abrir el panel sin conexión.
+    if (copia && s.rol === 'admin') guardarCopiaEstado(e)
     // El servidor guarda el color como #rrggbb; si es uno de la paleta se muestra con su nombre.
     const color = PALETA.find((p) => p.hex === datos.color)?.id ?? datos.color
-    setDbState({ ...datos, color })
+    // Lo registrado sin conexión que aún no llega al servidor se vuelve a aplicar encima.
+    setDbState(aplicarCola({ ...datos, color }))
     setSesion({ nombre: s.nombre, usuario: s.usuario, idCliente: s.idCliente })
     setRole(s.rol)
   }, [])
   const recargar = React.useCallback(
-    () => api<Estado>('GET', '/estado').then(aplicarEstado),
+    () =>
+      api<Estado>('GET', '/estado').then((e) => {
+        marcarConexion(true)
+        aplicarEstado(e)
+      }),
     [aplicarEstado],
   )
 
   // Modo API: al abrir la aplicación se pregunta si ya hay una sesión activa (cookie).
   React.useEffect(() => {
     if (!MODO_API) return
-    api<{ debeCambiarContrasena: boolean } | null>('GET', '/auth/sesion')
+    cargarCola()
+      .then(() => api<{ debeCambiarContrasena: boolean } | null>('GET', '/auth/sesion'))
       .then((s) => (s && !s.debeCambiarContrasena ? recargar() : undefined))
+      .then(() => {
+        if (hayPendientes()) void sincronizar().then(() => recargar().catch(() => {}))
+      })
       .catch((e) => {
-        if (!(e instanceof ApiError) || e.estado !== 401) console.warn(e)
+        // Sin conexión: se abre con la última copia guardada y lo pendiente de la cola (Acta 6).
+        const copia = esFallaDeRed(e) ? copiaEstado<Estado>() : null
+        if (copia) {
+          marcarConexion(false)
+          aplicarEstado(copia, false)
+        } else if (!(e instanceof ApiError) || e.estado !== 401) console.warn(e)
       })
       .finally(() => setCargando(false))
+  }, [recargar, aplicarEstado])
+
+  // Al volver la conexión se envía lo pendiente y se recarga el estado del servidor.
+  React.useEffect(() => {
+    if (!MODO_API) return
+    const volvio = () => {
+      marcarConexion(true)
+      void sincronizar().then(() => recargar().catch(() => {}))
+    }
+    const cayo = () => marcarConexion(false)
+    window.addEventListener('online', volvio)
+    window.addEventListener('offline', cayo)
+    return () => {
+      window.removeEventListener('online', volvio)
+      window.removeEventListener('offline', cayo)
+    }
   }, [recargar])
 
   const setDb = React.useCallback((fn: (d: DB) => DB) => setDbState((d) => fn(d)), [])
@@ -152,6 +200,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (!r && MODO_API) setDbState(DB_VACIA)
         },
         recargar,
+        nombreUsuario: () => sesionRef.current.nombre,
       }),
     [setDb, recargar],
   )
@@ -170,8 +219,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       dialog,
       openDialog: (kind, params = {}) => setDialog({ kind, params }),
       closeDialog: () => setDialog(null),
+      recargar: () => (MODO_API ? recargar() : Promise.resolve()),
     }),
-    [db, setDb, acciones, role, sesion, cargando, dialog],
+    [db, setDb, acciones, role, sesion, cargando, dialog, recargar],
   )
 
   return <AppContext value={value}>{children}</AppContext>
