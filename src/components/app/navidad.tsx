@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Snowflake } from 'lucide-react'
+import { Music, Snowflake } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
@@ -67,26 +67,203 @@ function useMenosMovimiento() {
   return reducir
 }
 
-/** Botón para encender o apagar el modo navidad. */
+// ── Sonido: «Jingle Bells» (James Lord Pierpont, 1857, dominio público) sintetizado con
+// Web Audio, sin archivos de audio. Empieza apagado; el navegador solo deja sonar después
+// de un clic, así que si quedó encendido arranca con el primer clic en la página.
+const CLAVE_SONIDO = 'th-navidad-sonido'
+const N: Record<string, number> = {
+  C4: 261.63,
+  D4: 293.66,
+  E4: 329.63,
+  F4: 349.23,
+  G4: 392.0,
+  C5: 523.25,
+}
+const MELODIA: [string, number][] = [
+  ['E4', 1],
+  ['E4', 1],
+  ['E4', 2],
+  ['E4', 1],
+  ['E4', 1],
+  ['E4', 2],
+  ['E4', 1],
+  ['G4', 1],
+  ['C4', 1.5],
+  ['D4', 0.5],
+  ['E4', 4],
+  ['F4', 1],
+  ['F4', 1],
+  ['F4', 1.5],
+  ['F4', 0.5],
+  ['F4', 1],
+  ['E4', 1],
+  ['E4', 1],
+  ['E4', 0.5],
+  ['E4', 0.5],
+  ['E4', 1],
+  ['D4', 1],
+  ['D4', 1],
+  ['E4', 1],
+  ['D4', 2],
+  ['G4', 2],
+  ['E4', 1],
+  ['E4', 1],
+  ['E4', 2],
+  ['E4', 1],
+  ['E4', 1],
+  ['E4', 2],
+  ['E4', 1],
+  ['G4', 1],
+  ['C4', 1.5],
+  ['D4', 0.5],
+  ['E4', 4],
+  ['F4', 1],
+  ['F4', 1],
+  ['F4', 1.5],
+  ['F4', 0.5],
+  ['F4', 1],
+  ['E4', 1],
+  ['E4', 1],
+  ['E4', 0.5],
+  ['E4', 0.5],
+  ['G4', 1],
+  ['G4', 1],
+  ['F4', 1],
+  ['D4', 1],
+  ['C4', 4],
+]
+const PULSO = 0.24
+let ctx: AudioContext | null = null
+let temporizador: number | undefined
+
+function campana(c: AudioContext, frec: number, t: number, dur: number) {
+  const g = c.createGain()
+  g.connect(c.destination)
+  g.gain.setValueAtTime(0.0001, t)
+  g.gain.exponentialRampToValueAtTime(0.07, t + 0.01)
+  g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.3, dur * 1.6))
+  for (const [mult, tipo] of [
+    [1, 'triangle'],
+    [2, 'sine'],
+    [3, 'sine'],
+  ] as const) {
+    const o = c.createOscillator()
+    o.type = tipo
+    o.frequency.value = frec * mult
+    const go = c.createGain()
+    go.gain.value = mult === 1 ? 1 : 0.25 / mult
+    o.connect(go).connect(g)
+    o.start(t)
+    o.stop(t + Math.max(0.3, dur * 1.6) + 0.05)
+  }
+}
+
+function tocarFrase() {
+  if (!ctx) return
+  let t = ctx.currentTime + 0.05
+  for (const [nota, pulsos] of MELODIA) {
+    campana(ctx, N[nota], t, pulsos * PULSO)
+    t += pulsos * PULSO
+  }
+  const total = MELODIA.reduce((a, [, p]) => a + p, 0) * PULSO
+  temporizador = window.setTimeout(tocarFrase, (total + 3) * 1000)
+}
+
+function iniciarSonido() {
+  if (ctx) return
+  const AC =
+    window.AudioContext ??
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  if (!AC) return
+  ctx = new AC()
+  void ctx.resume()
+  tocarFrase()
+}
+
+function detenerSonido() {
+  window.clearTimeout(temporizador)
+  temporizador = undefined
+  void ctx?.close()
+  ctx = null
+}
+
+function leerSonido(): boolean {
+  try {
+    return localStorage.getItem(CLAVE_SONIDO) === 'on'
+  } catch {
+    return false
+  }
+}
+
+function useSonidoNavidad(navidad: boolean) {
+  const sonido = React.useSyncExternalStore(suscribir, leerSonido, () => false)
+  React.useEffect(() => {
+    if (!navidad || !sonido) {
+      detenerSonido()
+      return
+    }
+    if (ctx) return
+    // El navegador exige un clic antes de reproducir sonido.
+    const arrancar = () => iniciarSonido()
+    window.addEventListener('pointerdown', arrancar, { once: true })
+    return () => window.removeEventListener('pointerdown', arrancar)
+  }, [navidad, sonido])
+  const cambiar = React.useCallback(() => {
+    const nuevo = !leerSonido()
+    try {
+      localStorage.setItem(CLAVE_SONIDO, nuevo ? 'on' : 'off')
+    } catch {
+      /* sin almacenamiento */
+    }
+    if (nuevo) iniciarSonido()
+    else detenerSonido()
+    window.dispatchEvent(new Event(EVENTO))
+  }, [])
+  return { sonido, cambiar }
+}
+
+/** Botón para encender o apagar el modo navidad (y, si está encendido, su música). */
 export function BotonNavidad({ compacto = false }: { compacto?: boolean }) {
   const { activo, cambiar } = useNavidad()
+  const musica = useSonidoNavidad(activo)
   const texto = activo ? 'Desactivar modo navidad' : 'Activar modo navidad'
+  const textoMusica = musica.sonido ? 'Apagar la música de navidad' : 'Poner música de navidad'
   return (
-    <button
-      type="button"
-      onClick={cambiar}
-      aria-pressed={activo}
-      aria-label={texto}
-      title={texto}
-      className={cn(
-        'inline-flex shrink-0 items-center justify-center gap-2 rounded-lg text-[14px] font-medium transition',
-        compacto ? 'size-11' : 'h-9 px-3',
-        activo ? 'bg-sky-100 text-sky-700 hover:bg-sky-200' : 'text-ink-2 hover:bg-secondary',
+    <>
+      {activo && (
+        <button
+          type="button"
+          onClick={musica.cambiar}
+          aria-pressed={musica.sonido}
+          aria-label={textoMusica}
+          title={textoMusica}
+          className={cn(
+            'inline-flex shrink-0 items-center justify-center rounded-lg transition',
+            compacto ? 'size-11' : 'size-9',
+            musica.sonido
+              ? 'bg-red-100 text-red-700 hover:bg-red-200'
+              : 'text-ink-2 hover:bg-secondary',
+          )}
+        >
+          <Music className="size-[20px]" />
+        </button>
       )}
-    >
-      <Snowflake className="size-[20px]" />
-      {!compacto && <span>Navidad</span>}
-    </button>
+      <button
+        type="button"
+        onClick={cambiar}
+        aria-pressed={activo}
+        aria-label={texto}
+        title={texto}
+        className={cn(
+          'inline-flex shrink-0 items-center justify-center gap-2 rounded-lg text-[14px] font-medium transition',
+          compacto ? 'size-11' : 'h-9 px-3',
+          activo ? 'bg-sky-100 text-sky-700 hover:bg-sky-200' : 'text-ink-2 hover:bg-secondary',
+        )}
+      >
+        <Snowflake className="size-[20px]" />
+        {!compacto && <span>Navidad</span>}
+      </button>
+    </>
   )
 }
 
