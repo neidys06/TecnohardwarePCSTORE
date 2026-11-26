@@ -105,7 +105,7 @@ public class OrdenController {
         return ordenes.responderAdicional(codigo, r.decision(), yo.getId());
     }
 
-    @Operation(summary = "Agregar evidencias fotográficas (RF-08)", description = "En PROCESO la nota es obligatoria.")
+    @Operation(summary = "Agregar evidencias fotográficas (RF-08)", description = "La nota de lo que se está haciendo es opcional (Reunión 7).")
     @PostMapping(path = "/{codigo}/evidencias", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public OrdenDTO evidencias(@PathVariable String codigo,

@@ -1,5 +1,6 @@
 package co.tecnihardware.st.exception;
 
+import java.io.UncheckedIOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -106,6 +107,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiError> rutaInexistente(NoResourceFoundException ex, HttpServletRequest req) {
         return respuesta(HttpStatus.NOT_FOUND, "Ruta no encontrada.", req, Map.of());
+    }
+
+    /** No se pudo escribir o leer en la carpeta de archivos (por ejemplo, un volumen sin permisos de escritura). */
+    @ExceptionHandler(UncheckedIOException.class)
+    public ResponseEntity<ApiError> archivos(UncheckedIOException ex, HttpServletRequest req) {
+        log.error("Error con la carpeta de archivos en {} {}", req.getMethod(), req.getRequestURI(), ex);
+        return respuesta(HttpStatus.INTERNAL_SERVER_ERROR,
+                "El servidor no pudo guardar la foto o el archivo. Revisa que la carpeta de archivos tenga permisos de escritura.",
+                req, Map.of());
     }
 
     @ExceptionHandler(Exception.class)

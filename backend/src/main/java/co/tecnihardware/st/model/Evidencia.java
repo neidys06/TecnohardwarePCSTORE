@@ -16,7 +16,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
-/** Fotografía de ingreso, de proceso (con nota) o de salida (RF-08). */
+/** Fotografía de ingreso, de proceso (con nota opcional, Reunión 7) o de salida (RF-08). */
 @Entity
 @Table(name = "evidencia",
         uniqueConstraints = @UniqueConstraint(name = "uk_evidencia_ruta", columnNames = "ruta_archivo"),

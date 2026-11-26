@@ -204,11 +204,8 @@ public class OrdenService {
         if (imagenes.isEmpty()) {
             throw new ReglaDeNegocioException("Selecciona al menos una fotografía.");
         }
+        // Reunión 7: la descripción de lo que se está haciendo es opcional, como las fotos.
         String notaLimpia = nota == null ? "" : nota.trim();
-        if (momento == MomentoEvidencia.PROCESO && notaLimpia.length() < 5) {
-            throw new ReglaDeNegocioException("Escribe una nota de lo que se está haciendo (mínimo 5 caracteres).",
-                    "nota", "Mínimo 5 caracteres.");
-        }
         if (notaLimpia.length() > 500) {
             throw new ReglaDeNegocioException("La nota admite máximo 500 caracteres.", "nota", "Máximo 500 caracteres.");
         }
@@ -216,7 +213,7 @@ public class OrdenService {
         if (o.getEstado().esCerrado()) {
             throw new ConflictoException("La orden ya está cerrada; no se le pueden agregar fotografías.");
         }
-        guardarFotos(o, momento, imagenes, momento == MomentoEvidencia.PROCESO ? notaLimpia : null);
+        guardarFotos(o, momento, imagenes, momento == MomentoEvidencia.PROCESO && !notaLimpia.isEmpty() ? notaLimpia : null);
         return aDTO(o);
     }
 
