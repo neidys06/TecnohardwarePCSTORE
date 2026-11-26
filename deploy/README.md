@@ -49,4 +49,4 @@ Luego **Actions → CD · Despliegue en Oracle Cloud → Run workflow**. Desde a
 
 - `https://<DOMINIO>` abre el sistema; primer ingreso `admin` + `ADMIN_CLAVE` → pide cambiarla.
 - En la máquina: `docker compose ps` y `docker compose logs -f app`.
-- Copias de seguridad: cada noche en `~/tecnihardware/respaldos` (base de datos y fotos, 14 días). Conviene bajarlas a otro lugar de vez en cuando.
+- Copias de seguridad en `~/tecnihardware/respaldos`: base de datos cada noche (14 días) y fotos cada domingo (las 2 últimas). Conviene bajarlas a otro lugar de vez en cuando.
