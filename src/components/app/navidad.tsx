@@ -279,12 +279,33 @@ function Copo({ tam }: { tam: number }) {
 }
 
 function Baston({ tam }: { tam: number }) {
-  const d = 'M12 42 V16 a8 8 0 0 1 16 0 v3'
+  // Bastón de dulce navideño: forma de «J», blanco con rayas rojas en diagonal y un brillo.
+  const id = React.useId().replace(/:/g, '')
+  const d = 'M30 56 V20 a10 10 0 0 0 -20 0 v4'
   return (
-    <svg width={tam} height={tam * 1.25} viewBox="0 0 40 50" fill="none">
-      <path d={d} stroke="#ffffff" strokeWidth="7" strokeLinecap="round" />
-      <path d={d} stroke="#dc2626" strokeWidth="7" strokeLinecap="round" strokeDasharray="5 6" />
-      <path d={d} stroke="rgba(0,0,0,0.15)" strokeWidth="8" strokeLinecap="round" opacity="0.4" />
+    <svg width={tam * 0.72} height={tam} viewBox="0 0 40 62" fill="none">
+      <defs>
+        <pattern
+          id={`rayas-${id}`}
+          width="9"
+          height="9"
+          patternUnits="userSpaceOnUse"
+          patternTransform="rotate(40)"
+        >
+          <rect width="9" height="9" fill="#ffffff" />
+          <rect width="4" height="9" fill="#dc2626" />
+          <rect x="5.2" width="1.2" height="9" fill="#16a34a" />
+        </pattern>
+      </defs>
+      <path d={d} stroke="#7f1d1d" strokeWidth="10" strokeLinecap="round" opacity="0.35" />
+      <path d={d} stroke={`url(#rayas-${id})`} strokeWidth="8" strokeLinecap="round" />
+      <path
+        d="M27.5 54 V21"
+        stroke="#ffffff"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        opacity="0.55"
+      />
     </svg>
   )
 }
@@ -326,7 +347,12 @@ function crearPiezas(n: number): Pieza[] {
       id,
       tipo,
       x: azar() * 100,
-      tam: tipo === 'copo' ? 12 + azar() * 16 : 30 + azar() * 14,
+      tam:
+        tipo === 'copo'
+          ? 12 + azar() * 16
+          : tipo === 'baston'
+            ? 42 + azar() * 16
+            : 30 + azar() * 14,
       dur: 10 + azar() * 12,
       retraso: -azar() * 22,
       giro: (azar() < 0.5 ? -1 : 1) * (120 + azar() * 240),
