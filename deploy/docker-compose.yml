@@ -1,0 +1,53 @@
+# Producción en la máquina virtual de Oracle Cloud: MySQL + aplicación + Caddy (HTTPS automático).
+# Va en ~/tecnihardware junto con Caddyfile y .env (ver deploy/README.md).
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: tecnihardware
+      MYSQL_USER: th_app
+      MYSQL_PASSWORD: ${DB_PASS:?Falta DB_PASS en .env}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS:?Falta DB_ROOT_PASS en .env}
+      TZ: America/Bogota
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_spanish_ci"]
+    volumes:
+      - mysql-datos:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  app:
+    image: ${IMAGEN:?Falta IMAGEN en .env}
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:mysql://db:3306/tecnihardware?serverTimezone=America/Bogota
+      DB_USER: th_app
+      DB_PASS: ${DB_PASS}
+      JWT_SECRETO: ${JWT_SECRETO:?Falta JWT_SECRETO en .env}
+      ADMIN_CLAVE: ${ADMIN_CLAVE:-Temporal2026}
+    volumes:
+      - archivos:/var/lib/tecnihardware/archivos
+    depends_on:
+      db:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMINIO: ${DOMINIO:?Falta DOMINIO en .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-datos:/data
+    depends_on: [app]
+
+volumes:
+  mysql-datos:
+  archivos:
+  caddy-datos:

@@ -1,0 +1,8 @@
+# Caddy obtiene y renueva solo el certificado HTTPS (Let's Encrypt) para el dominio de .env.
+{$DOMINIO} {
+	encode gzip
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy app:8080
+}
