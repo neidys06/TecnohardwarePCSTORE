@@ -57,7 +57,9 @@ function Titulo({ title, children }: { title: string; children?: React.ReactNode
 function Diagnostico({ o }: { o: Orden }) {
   const { db, acciones, openDialog } = useApp()
   const { enviando, enviar } = useEnvio()
-  const [diag, setDiag] = React.useState(o.diag)
+  // Reunión 7: el diagnóstico arranca con la falla que se escribió al recibir el equipo;
+  // la técnica la ajusta o agrega lo que encontró.
+  const [diag, setDiag] = React.useState(o.diag || o.falla)
   const [costo, setCosto] = React.useState(o.costo ? thousands(String(o.costo)) : '')
   const [err, setErr] = React.useState<{ d?: string; c?: string }>({})
 
@@ -89,7 +91,17 @@ function Diagnostico({ o }: { o: Orden }) {
         <Camera />
         Agregar fotos del diagnóstico (opcional)
       </Button>
-      <Field id="od-d" label="Diagnóstico" required error={err.d}>
+      <Field
+        id="od-d"
+        label="Diagnóstico"
+        required
+        error={err.d}
+        help={
+          o.diag
+            ? undefined
+            : 'Viene con la falla que se escribió al recibir el equipo; edítala con lo que encontraste.'
+        }
+      >
         <Textarea
           id="od-d"
           rows={4}

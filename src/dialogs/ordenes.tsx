@@ -269,8 +269,6 @@ export function EvidenciaDialog({ id, tipo: t0 }: { id: string; tipo?: string })
   const save = () => {
     const er: typeof err = {}
     if (!fotos.length) er.f = 'Elige al menos una foto.'
-    if (tipo === 'proceso' && nota.trim().length < 5)
-      er.n = 'Escribe qué se está haciendo en este momento.'
     setErr(er)
     if (Object.keys(er).length) return
     enviar(async () => {
@@ -306,7 +304,7 @@ export function EvidenciaDialog({ id, tipo: t0 }: { id: string; tipo?: string })
       />
       <p className="-mt-1 text-[14px] text-ink-2">{AYUDA[tipo]}</p>
       {tipo === 'proceso' && (
-        <Field id="ev-n" label="¿Qué se está haciendo?" required error={err.n}>
+        <Field id="ev-n" label="¿Qué se está haciendo? (opcional)" error={err.n}>
           <Input
             id="ev-n"
             value={nota}

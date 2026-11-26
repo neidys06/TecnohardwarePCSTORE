@@ -49,6 +49,9 @@ export function ClienteDialog({ id }: { id?: string }) {
     if (n.trim().split(/\s+/).length < 2) er.n = 'Escribe nombre y apellido.'
     if (!t) er.t = 'El celular es obligatorio para contactarlo por WhatsApp.'
     else if (digits(t).length !== 10) er.t = 'El celular debe tener 10 dígitos.'
+    else if (!digits(t).startsWith('3'))
+      er.t =
+        'Revisa el número: los celulares en Colombia empiezan por 3 (por ejemplo, 301 555 0185).'
     if (ce && db.clientes.some((x) => x.id !== id && digits(x.cedula) === digits(ce)))
       er.c = 'Ya existe un cliente con esa cédula.'
     setErr(er)
@@ -58,8 +61,11 @@ export function ClienteDialog({ id }: { id?: string }) {
       async () => {
         const r = await acciones.guardarCliente(c?.id, datos)
         if (c) {
-          closeDialog()
           toast.success('Datos del cliente actualizados')
+          // Reunión 7: si se corrigió el celular, se ofrece enviar de nuevo el acceso al número correcto.
+          if (digits(c.tel) !== digits(datos.tel))
+            openDialog('restablecer', { cid: c.id, motivo: 'numero' })
+          else closeDialog()
         } else openDialog('cliente-creado', { id: r.id, pass: r.pass ?? '' })
       },
       (campos) =>
@@ -462,7 +468,8 @@ export function WhatsAppDialog({ cid, oid }: { cid: string; oid?: string }) {
   )
 }
 
-export function RestablecerDialog({ cid }: { cid: string }) {
+export function RestablecerDialog({ cid, motivo }: { cid: string; motivo?: string }) {
+  const porNumero = motivo === 'numero'
   const { db, acciones, closeDialog } = useApp()
   const { enviando, enviar } = useEnvio()
   const c = clienteDe(db, cid)
@@ -474,7 +481,7 @@ export function RestablecerDialog({ cid }: { cid: string }) {
     })
   return (
     <Modal
-      title="Restablecer contraseña"
+      title={porNumero ? 'Enviar el acceso al número corregido' : 'Restablecer contraseña'}
       description={`${c.nombre} · usuario ${c.usuario}`}
       size="sm"
       footer={
@@ -485,18 +492,25 @@ export function RestablecerDialog({ cid }: { cid: string }) {
           </Button>
         ) : (
           <>
-            <CancelButton />
+            {porNumero ? (
+              <Button variant="secondary" onClick={closeDialog}>
+                Ahora no
+              </Button>
+            ) : (
+              <CancelButton />
+            )}
             <Button onClick={generar} disabled={enviando}>
               <KeyRound />
-              Generar contraseña temporal
+              {porNumero ? 'Generar acceso para enviar' : 'Generar contraseña temporal'}
             </Button>
           </>
         )
       }
     >
       <p className="text-ink-2">
-        Se crea una contraseña temporal que el cliente debe cambiar al entrar. Envíasela por
-        WhatsApp al {c.tel || 'número registrado'}.
+        {porNumero
+          ? `El celular quedó como ${c.tel}. Para que el usuario y la contraseña le lleguen al número correcto, se genera una contraseña temporal nueva y se le envía el mensaje de bienvenida (primera comunicación).`
+          : `Se crea una contraseña temporal que el cliente debe cambiar al entrar. Envíasela por WhatsApp al ${c.tel || 'número registrado'}.`}
       </p>
       {pass && (
         <>
@@ -504,7 +518,7 @@ export function RestablecerDialog({ cid }: { cid: string }) {
             <KV k="Usuario" v={c.usuario} />
             <KV k="Contraseña temporal" v={pass} mono />
           </dl>
-          <EnviarAcceso cid={cid} pass={pass} />
+          <EnviarAcceso cid={cid} pass={pass} nuevo={porNumero} />
         </>
       )}
     </Modal>
@@ -529,9 +543,11 @@ function EnviarAcceso({
   pass: string
   nuevo?: boolean
 }) {
-  const { db } = useApp()
+  const { db, openDialog } = useApp()
   const c = clienteDe(db, cid)
   const txt = mensajeAcceso(c.nombre, c.usuario, pass, nuevo)
+  const [abierto, setAbierto] = React.useState(false)
+  const [confirmado, setConfirmado] = React.useState(false)
   // Acta 6: también este mensaje se puede editar antes de enviarlo.
   const [mensaje, setMensaje] = React.useState(txt)
   if (!c.tel)
@@ -544,11 +560,44 @@ function EnviarAcceso({
     <div className="flex flex-col gap-3">
       <CopyBox text={txt} id="acceso-msg" onChange={setMensaje} />
       <Button variant="whatsapp" asChild>
-        <a href={enlaceWhatsApp(c.tel, mensaje)} target="_blank" rel="noopener noreferrer">
+        <a
+          href={enlaceWhatsApp(c.tel, mensaje)}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => {
+            setAbierto(true)
+            setConfirmado(false)
+          }}
+        >
           <MessageCircle />
           Enviar usuario y contraseña por WhatsApp
         </a>
       </Button>
+      {/* Reunión 7: WhatsApp no le avisa al sistema si el número no existe; se pregunta aquí. */}
+      {abierto && !confirmado && (
+        <Notice tone="warning" title="¿Se pudo enviar el mensaje?">
+          Si WhatsApp dijo que el número {c.tel} no existe o no está en WhatsApp, corrige el número
+          y vuelve a enviar el acceso.
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => setConfirmado(true)}>
+              <Check />
+              Sí, se envió
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => openDialog('cliente', { id: cid })}
+            >
+              El número no existe: corregirlo
+            </Button>
+          </div>
+        </Notice>
+      )}
+      {confirmado && (
+        <Notice tone="success" title="Mensaje enviado">
+          El cliente ya tiene su usuario y su contraseña temporal.
+        </Notice>
+      )}
     </div>
   )
 }

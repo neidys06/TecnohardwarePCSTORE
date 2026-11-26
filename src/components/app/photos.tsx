@@ -6,30 +6,58 @@ import { MODO_API } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 const MAX = 5 * 1024 * 1024
+/** Fotos de celular de hasta 25 MB: se reducen en el navegador antes de enviarlas. */
+const MAX_ORIGINAL = 25 * 1024 * 1024
+const LADO_MAX = 1600
 
-/** Lee fotos JPG/PNG de hasta 5 MB como data URL y reporta las que no son válidas. */
+/**
+ * Reunión 7: las fotos del celular suelen pasar de 5 MB. Se reducen a 1600 px por lado y se
+ * guardan como JPG (calidad 0,82), lo que deja cada foto en unos cientos de KB.
+ */
+async function reducir(f: File): Promise<string> {
+  const url = URL.createObjectURL(f)
+  try {
+    const img = new Image()
+    img.src = url
+    await img.decode()
+    const k = Math.min(1, LADO_MAX / Math.max(img.naturalWidth, img.naturalHeight))
+    const c = document.createElement('canvas')
+    c.width = Math.round(img.naturalWidth * k)
+    c.height = Math.round(img.naturalHeight * k)
+    const g = c.getContext('2d')!
+    g.fillStyle = '#ffffff'
+    g.fillRect(0, 0, c.width, c.height)
+    g.drawImage(img, 0, 0, c.width, c.height)
+    const dataUrl = c.toDataURL('image/jpeg', 0.82)
+    if (dataUrl.length * 0.75 > MAX) throw new Error('grande')
+    return dataUrl
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
+/** Lee las fotos (JPG, PNG o la cámara del celular), las reduce y reporta las que no se pudieron usar. */
 export function useImageFiles(onAdd: (urls: string[]) => void) {
   const [error, setError] = React.useState('')
   const handle = React.useCallback(
     (files: FileList | File[]) => {
       const list = [...files]
       if (!list.length) return
-      const ok = list.filter((f) => /image\/(jpeg|png)/.test(f.type) && f.size <= MAX)
-      setError(
-        ok.length < list.length
-          ? 'Uno o más archivos no son válidos. Usa fotos JPG o PNG de máximo 5 MB.'
-          : '',
-      )
+      setError('')
       Promise.all(
-        ok.map(
-          (f) =>
-            new Promise<string>((res) => {
-              const r = new FileReader()
-              r.onload = () => res(String(r.result))
-              r.readAsDataURL(f)
-            }),
+        list.map((f) =>
+          f.type.startsWith('image/') && f.size <= MAX_ORIGINAL
+            ? reducir(f).catch(() => null)
+            : Promise.resolve(null),
         ),
-      ).then((urls) => urls.length && onAdd(urls))
+      ).then((res) => {
+        const urls = res.filter((u): u is string => !!u)
+        if (urls.length < list.length)
+          setError(
+            'Una o más fotos no se pudieron usar. Usa fotos JPG o PNG (las del celular sirven) de máximo 25 MB.',
+          )
+        if (urls.length) onAdd(urls)
+      })
     },
     [onAdd],
   )
@@ -107,7 +135,7 @@ export function DropZone({
           id={id}
           ref={ref}
           type="file"
-          accept="image/png,image/jpeg"
+          accept="image/*"
           multiple
           className="sr-only"
           onChange={(e) => {
@@ -127,7 +155,9 @@ export function DropZone({
             </Button>
           )}
         </div>
-        <p className="text-[14px] text-muted-foreground">JPG o PNG · máximo 5 MB por foto</p>
+        <p className="text-[14px] text-muted-foreground">
+          JPG o PNG · las fotos grandes del celular se reducen solas
+        </p>
       </div>
       {error && (
         <p className="flex items-center gap-1.5 text-[14px] text-destructive">

@@ -28,7 +28,12 @@ function tokenCsrf() {
   return m ? decodeURIComponent(m[1]) : undefined
 }
 
-export async function api<T = unknown>(metodo: string, ruta: string, cuerpo?: Cuerpo): Promise<T> {
+export async function api<T = unknown>(
+  metodo: string,
+  ruta: string,
+  cuerpo?: Cuerpo,
+  reintento = false,
+): Promise<T> {
   const init: RequestInit = { method: metodo, credentials: 'include', headers: {} }
   const csrf = metodo === 'GET' ? undefined : tokenCsrf()
   if (csrf) (init.headers as Record<string, string>)['X-XSRF-TOKEN'] = csrf
@@ -48,6 +53,12 @@ export async function api<T = unknown>(metodo: string, ruta: string, cuerpo?: Cu
   }
   if (r.status === 204) return undefined as T
   const datos = await r.json().catch(() => ({}))
+  // Reunión 7: si el token CSRF venció (la página estuvo abierta mucho tiempo), se pide uno
+  // nuevo y se reintenta una vez, en lugar de pedirle al usuario que recargue la página.
+  if (r.status === 403 && metodo !== 'GET' && !reintento && /Recárgala/.test(datos.mensaje ?? '')) {
+    await fetch(BASE + '/auth/sesion', { credentials: 'include' }).catch(() => {})
+    return api<T>(metodo, ruta, cuerpo, true)
+  }
   if (!r.ok)
     // El servidor responde { status, error, mensaje, campos } (ApiError del backend).
     throw new ApiError(

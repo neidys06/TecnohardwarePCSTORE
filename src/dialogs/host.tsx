@@ -38,7 +38,7 @@ export function DialogHost() {
     case 'whatsapp':
       return <WhatsAppDialog key={key} cid={p.cid} oid={p.oid} />
     case 'restablecer':
-      return <RestablecerDialog key={key} cid={p.cid} />
+      return <RestablecerDialog key={key} cid={p.cid} motivo={p.motivo} />
     case 'recordatorio':
       return <RecordatorioDialog key={key} eid={p.eid} />
     case 'plantilla':
