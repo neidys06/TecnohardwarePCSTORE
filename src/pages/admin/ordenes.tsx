@@ -91,11 +91,12 @@ export default function OrdenesPage() {
     (o) => missingEvidence(o).length,
   ).length
 
-  const filtroFaltan = (
+  // Desde el Acta 6 las fotos son opcionales: el filtro solo aparece si alguna orden las requiere.
+  const filtroFaltan = nFaltan ? (
     <Chip on={soloFaltan} tone="danger" onClick={() => setSoloFaltan((v) => !v)}>
       Faltan evidencias <span className="tnum opacity-70">{nFaltan}</span>
     </Chip>
-  )
+  ) : null
   const selector = (
     <Segmented
       label="Vista"

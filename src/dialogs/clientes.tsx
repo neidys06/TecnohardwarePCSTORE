@@ -14,7 +14,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { digits, money } from '@/lib/dates'
-import { adicionalPendiente, AVISO_LISTO, clienteDe, equipoDe, totalOrden } from '@/lib/domain'
+import {
+  adicionalPendiente,
+  AVISO_LISTO,
+  clienteDe,
+  cuentaCliente,
+  equipoDe,
+  totalOrden,
+} from '@/lib/domain'
 import { TIENDA } from '@/lib/seed'
 import { useApp } from '@/lib/store'
 import { useEnvio } from '@/lib/use-envio'
@@ -160,15 +167,25 @@ export function ClienteCreadoDialog({ id, pass }: { id: string; pass: string }) 
         </Button>
       }
     >
-      <Notice tone="success" title={`${c.nombre} ya tiene acceso al portal`}>
-        Envíale estos datos por WhatsApp. Al entrar, el sistema le pedirá crear su propia
-        contraseña.
-      </Notice>
-      <dl className="grid grid-cols-2 gap-4 rounded-lg bg-secondary p-4">
-        <KV k="Usuario" v={c.usuario} />
-        <KV k="Contraseña temporal" v={pass} mono />
-      </dl>
-      <EnviarAcceso cid={id} pass={pass} nuevo />
+      {pass ? (
+        <>
+          <Notice tone="success" title={`${c.nombre} ya tiene acceso al portal`}>
+            Envíale estos datos por WhatsApp. Al entrar, el sistema le pedirá crear su propia
+            contraseña.
+          </Notice>
+          <dl className="grid grid-cols-2 gap-4 rounded-lg bg-secondary p-4">
+            <KV k="Usuario" v={c.usuario} />
+            <KV k="Contraseña temporal" v={pass} mono />
+          </dl>
+          <EnviarAcceso cid={id} pass={pass} nuevo />
+        </>
+      ) : (
+        <Notice tone="warning" title={`${c.nombre} quedó registrado sin conexión`}>
+          Ya puedes registrarle el equipo, la orden y el diagnóstico. El usuario y la contraseña
+          temporal los genera el servidor cuando vuelva la conexión; aparecerán arriba en «Acceso
+          por enviar» para mandárselos por WhatsApp.
+        </Notice>
+      )}
     </Modal>
   )
 }
@@ -372,12 +389,27 @@ export function WhatsAppDialog({ cid, oid }: { cid: string; oid?: string }) {
   const nombre = c.nombre.split(' ')[0]
   const pend = o && adicionalPendiente(o)
   const listo = o?.estado === 'fin'
+  const equipo = o ? equipoDe(db, o.eq).nombre : ''
+  const cuenta = o ? cuentaCliente(db, cid) : null
+  const otras = cuenta ? cuenta.ordenes.filter((x) => x.id !== o?.id) : []
+  // Acta 6: si el cliente tiene otros equipos sin entregar, el aviso lleva la cuenta única.
+  const detalleCuenta =
+    otras.length && cuenta
+      ? ` También tienes ${otras.length === 1 ? 'otro equipo' : `otros ${otras.length} equipos`} con nosotros (${otras
+          .map(
+            (x) =>
+              `${equipoDe(db, x.eq).nombre}: ${x.costo == null ? 'por definir' : money(totalOrden(x))}`,
+          )
+          .join(
+            '; ',
+          )}). Total de tu cuenta: ${money(cuenta.total)}${cuenta.porDefinir ? ' más lo que esté por definir' : ''}.`
+      : ''
   const txt = o
     ? listo
-      ? `Hola ${nombre}, te escribimos de TecniHardware PC Store. ¡Tu ${equipoDe(db, o.eq).nombre} ya está listo para recoger! (orden ${o.id}). Trabajo realizado: ${o.trabajo || 'mantenimiento'} Valor a pagar: ${money(totalOrden(o))}. Te esperamos en el ${TIENDA.local} del CC Gran Bulevar.`
+      ? `Hola ${nombre}, te escribimos de TecniHardware PC Store. ¡Tu ${equipo} ya está listo para recoger! (orden ${o.id}). Trabajo realizado: ${o.trabajo || 'mantenimiento'} Valor a pagar: ${money(totalOrden(o))}.${detalleCuenta} Te esperamos en el ${TIENDA.local} del CC Gran Bulevar.`
       : o.estado === 'espera' && pend
-        ? `Hola ${nombre}, te escribimos de TecniHardware PC Store. En tu ${equipoDe(db, o.eq).nombre} (orden ${o.id}) encontramos algo más: ${pend.desc} El costo adicional es ${money(pend.costo)}. ¿Nos autorizas a hacerlo?`
-        : `Hola ${nombre}, te escribimos de TecniHardware PC Store. Ya revisamos tu ${equipoDe(db, o.eq).nombre} (orden ${o.id}). Diagnóstico: ${o.diag || 'en revisión'} Costo: ${money(o.costo)}. ¿Nos autorizas la reparación?`
+        ? `Hola ${nombre}, te escribimos de TecniHardware PC Store. En tu ${equipo} (orden ${o.id}) encontramos algo más: ${pend.desc} El costo adicional es ${money(pend.costo)}. ¿Nos autorizas a hacerlo?`
+        : `Hola ${nombre}, te escribimos de TecniHardware PC Store. Ya revisamos tu ${equipo} (orden ${o.id}). Diagnóstico: ${o.diag || 'en revisión'} Costo: ${money(o.costo)}.${detalleCuenta} ¿Nos autorizas la reparación?`
     : `Hola ${nombre}, te escribimos de TecniHardware PC Store.`
   const [mensaje, setMensaje] = React.useState(txt)
   const registrar = () =>
@@ -499,6 +531,9 @@ function EnviarAcceso({
 }) {
   const { db } = useApp()
   const c = clienteDe(db, cid)
+  const txt = mensajeAcceso(c.nombre, c.usuario, pass, nuevo)
+  // Acta 6: también este mensaje se puede editar antes de enviarlo.
+  const [mensaje, setMensaje] = React.useState(txt)
   if (!c.tel)
     return (
       <Notice tone="warning" title="El cliente no tiene celular registrado">
@@ -506,15 +541,14 @@ function EnviarAcceso({
       </Notice>
     )
   return (
-    <Button variant="whatsapp" asChild>
-      <a
-        href={enlaceWhatsApp(c.tel, mensajeAcceso(c.nombre, c.usuario, pass, nuevo))}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <MessageCircle />
-        Enviar usuario y contraseña por WhatsApp
-      </a>
-    </Button>
+    <div className="flex flex-col gap-3">
+      <CopyBox text={txt} id="acceso-msg" onChange={setMensaje} />
+      <Button variant="whatsapp" asChild>
+        <a href={enlaceWhatsApp(c.tel, mensaje)} target="_blank" rel="noopener noreferrer">
+          <MessageCircle />
+          Enviar usuario y contraseña por WhatsApp
+        </a>
+      </Button>
+    </div>
   )
 }

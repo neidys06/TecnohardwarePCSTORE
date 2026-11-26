@@ -1,11 +1,12 @@
 import * as React from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, Navigate, useParams } from 'react-router'
 import {
   Camera,
   Check,
   ChevronRight,
   MessageCircle,
   PackageCheck,
+  ReceiptText,
   TriangleAlert,
   UserRound,
   Wrench,
@@ -30,10 +31,12 @@ import {
   adicionalPendiente,
   avisoListo,
   clienteDeOrden,
+  cuentaCliente,
   equipoDe,
   missingEvidence,
   totalOrden,
 } from '@/lib/domain'
+import { esTemporal, traducir } from '@/lib/sin-conexion'
 import { useApp } from '@/lib/store'
 import type { Orden } from '@/lib/types'
 import { useEnvio } from '@/lib/use-envio'
@@ -57,15 +60,12 @@ function Diagnostico({ o }: { o: Orden }) {
   const [diag, setDiag] = React.useState(o.diag)
   const [costo, setCosto] = React.useState(o.costo ? thousands(String(o.costo)) : '')
   const [err, setErr] = React.useState<{ d?: string; c?: string }>({})
-  const faltaIngreso = missingEvidence(o).includes('ingreso')
 
   const save = () => {
     const er: typeof err = {}
     if (diag.trim().length < 10) er.d = 'Describe lo encontrado (mínimo 10 caracteres).'
     const n = Number(digits(costo))
     if (!n) er.c = 'Escribe el costo estimado en pesos.'
-    if (faltaIngreso)
-      er.c = `${er.c ? `${er.c} ` : ''}Antes de pedir la autorización adjunta las fotos de ingreso.`
     setErr(er)
     if (Object.keys(er).length) return
     enviar(async () => {
@@ -80,25 +80,15 @@ function Diagnostico({ o }: { o: Orden }) {
         Escribe lo encontrado y el costo estimado. Al guardar, la orden pasa a «Pendiente de
         autorización».
       </Titulo>
-      {faltaIngreso && (
-        <Notice
-          tone="warning"
-          title="Faltan las fotos de ingreso"
-          action={
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => openDialog('evidencia', { id: o.id, tipo: 'ingreso' })}
-            >
-              <Camera />
-              Adjuntar fotos
-            </Button>
-          }
-        >
-          Si no las tomaste al recibir el equipo, agrégalas ahora. Son necesarias para registrar el
-          diagnóstico y pedir la autorización.
-        </Notice>
-      )}
+      <Button
+        variant="secondary"
+        size="sm"
+        className="self-start"
+        onClick={() => openDialog('evidencia', { id: o.id, tipo: 'proceso' })}
+      >
+        <Camera />
+        Agregar fotos del diagnóstico (opcional)
+      </Button>
       <Field id="od-d" label="Diagnóstico" required error={err.d}>
         <Textarea
           id="od-d"
@@ -189,6 +179,44 @@ function Accion({
     <button type="button" onClick={onClick} className={cls}>
       {body}
     </button>
+  )
+}
+
+/** Acta 6: si el cliente tiene varios equipos sin entregar, lo que debe se suma en una sola cuenta. */
+function CuentaUnica({ o }: { o: Orden }) {
+  const { db } = useApp()
+  const c = clienteDeOrden(db, o)
+  const cuenta = cuentaCliente(db, c.id)
+  if (cuenta.ordenes.length < 2) return null
+  return (
+    <Card className="flex flex-col gap-3">
+      <h2 className="text-[17px] font-semibold">Cuenta única de {c.nombre.split(' ')[0]}</h2>
+      <ul className="flex flex-col gap-2">
+        {cuenta.ordenes.map((x) => (
+          <li key={x.id} className="flex items-baseline justify-between gap-3 text-[15px]">
+            <Link to={`/admin/ordenes/${x.id}`} className="min-w-0 truncate hover:underline">
+              {equipoDe(db, x.eq).nombre}{' '}
+              <span className={cn('text-muted-foreground', x.id === o.id && 'font-medium')}>
+                ({x.id})
+              </span>
+            </Link>
+            <span className="shrink-0 tnum">
+              {x.costo == null ? 'Por definir' : money(totalOrden(x))}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="flex items-baseline justify-between border-t pt-3">
+        <span className="text-ink-2">Total de la cuenta</span>
+        <span className="text-xl font-semibold tnum">{money(cuenta.total)}</span>
+      </div>
+      {cuenta.porDefinir > 0 && (
+        <p className="text-[14px] text-muted-foreground">
+          Sin incluir {cuenta.porDefinir === 1 ? 'una orden' : `${cuenta.porDefinir} órdenes`} que
+          aún no tiene{cuenta.porDefinir === 1 ? '' : 'n'} diagnóstico.
+        </p>
+      )}
+    </Card>
   )
 }
 
@@ -423,6 +451,16 @@ function Principal({ o }: { o: Orden }) {
               Fecha de {o.estado === 'cerr' ? 'cierre' : 'entrega'}: {o.entrega}
             </p>
           )}
+          {o.estado === 'ent' && (
+            <div className="flex md:justify-end">
+              <Button variant="secondary" asChild>
+                <Link to={`/admin/recibo/${o.id}`}>
+                  <ReceiptText />
+                  Ver recibo de entrega
+                </Link>
+              </Button>
+            </div>
+          )}
         </Card>
       )
   }
@@ -432,6 +470,8 @@ export default function OrdenDetallePage() {
   const { id = '' } = useParams()
   const { db, openDialog } = useApp()
   const o = db.ordenes.find((x) => x.id === id)
+  // Una orden creada sin conexión cambia su id temporal por el código real al sincronizar.
+  if (!o && traducir(id) !== id) return <Navigate to={`/admin/ordenes/${traducir(id)}`} replace />
   if (!o) return <NotFound inline />
   const e = equipoDe(db, o.eq)
   const c = clienteDeOrden(db, o)
@@ -439,7 +479,7 @@ export default function OrdenDetallePage() {
     <>
       <PageHeader
         back={{ to: '/admin/ordenes', label: 'Órdenes' }}
-        title={`Orden ${o.id}`}
+        title={esTemporal(o.id) ? 'Orden nueva (sin enviar)' : `Orden ${o.id}`}
         description={`${e.nombre} · ${c.nombre} · Ingresó el ${o.ingreso}`}
         actions={
           <Button
@@ -466,6 +506,7 @@ export default function OrdenDetallePage() {
               </Link>
             </Button>
           </OrderSummaryCard>
+          <CuentaUnica o={o} />
           <EvidencePanel o={o} />
           <LogCard o={o} />
         </div>

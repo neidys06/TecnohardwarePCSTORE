@@ -180,14 +180,16 @@ function Bloque({
           {req ? <ImageOff className="size-[18px]" /> : <Camera className="size-[18px]" />}
           {req
             ? `Aún no hay fotos de ${title.toLowerCase()}`
-            : 'Agrega fotos de lo que se va haciendo'}
+            : closed
+              ? `Sin fotos de ${title.toLowerCase()}`
+              : `Agregar fotos de ${title.toLowerCase()}`}
         </button>
       )}
     </div>
   )
 }
 
-/** Ingreso y salida son obligatorias; las fotos durante el servicio son opcionales y llevan una nota. */
+/** Evidencias: desde el Acta 6 todas son opcionales; las del servicio llevan una nota. */
 export function EvidencePanel({ o, portal }: { o: Orden; portal?: boolean }) {
   const { openDialog } = useApp()
   const closed = portal || o.estado === 'ent' || o.estado === 'cerr'
@@ -206,7 +208,7 @@ export function EvidencePanel({ o, portal }: { o: Orden; portal?: boolean }) {
       </div>
       <Bloque
         title="Ingreso"
-        req
+        req={false}
         fotos={o.fotos.ingreso}
         onAdd={() => add('ingreso')}
         closed={closed}
@@ -254,14 +256,14 @@ export function EvidencePanel({ o, portal }: { o: Orden; portal?: boolean }) {
       {showSalida ? (
         <Bloque
           title="Salida"
-          req
+          req={false}
           fotos={o.fotos.salida}
           onAdd={() => add('salida')}
           closed={closed}
         />
       ) : (
         <p className="text-[14px] text-muted-foreground">
-          Las fotos de salida son obligatorias al registrar el mantenimiento.
+          Al registrar el mantenimiento puedes agregar fotos de salida (opcional).
         </p>
       )}
       {!portal && (

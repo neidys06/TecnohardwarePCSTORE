@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useParams } from 'react-router'
+import { Navigate, useParams } from 'react-router'
 import { History, KeyRound, MessageCircle, Pencil, Plus } from 'lucide-react'
 
 import { EquipoCard, OrdenRow } from '@/components/app/domain-ui'
@@ -7,7 +7,8 @@ import { Chip, Empty, KV, PageHeader, Section } from '@/components/app/ui-kit'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { fmtLong, money, parseDate } from '@/lib/dates'
-import { equipoDe, lastService, orderDate, trabajoDe } from '@/lib/domain'
+import { cuentaCliente, equipoDe, lastService, orderDate, trabajoDe } from '@/lib/domain'
+import { traducir } from '@/lib/sin-conexion'
 import { useApp } from '@/lib/store'
 import NotFound from '@/pages/not-found'
 
@@ -16,6 +17,8 @@ export default function ClienteFichaPage() {
   const { db, openDialog } = useApp()
   const [f, setF] = React.useState('todos')
   const c = db.clientes.find((x) => x.id === id)
+  // Un cliente registrado sin conexión cambia su id temporal por el real al sincronizar.
+  if (!c && traducir(id) !== id) return <Navigate to={`/admin/clientes/${traducir(id)}`} replace />
   if (!c) return <NotFound inline />
   const eqs = db.equipos.filter((e) => e.cliente === id)
   const os = db.ordenes
@@ -56,6 +59,16 @@ export default function ClienteFichaPage() {
           <KV k="Celular (WhatsApp)" v={c.tel || 'Sin teléfono'} mono />
           <KV k="Usuario del portal" v={c.usuario} />
           <KV k="Equipos registrados" v={String(eqs.length)} mono />
+          {/* Acta 6: cuenta única de los equipos que aún no se han entregado */}
+          <KV
+            k="Cuenta pendiente"
+            v={(() => {
+              const cu = cuentaCliente(db, c.id)
+              if (!cu.ordenes.length) return 'Al día'
+              return `${money(cu.total)} · ${cu.ordenes.length} ${cu.ordenes.length === 1 ? 'orden' : 'órdenes'}${cu.porDefinir ? ` (${cu.porDefinir} por definir)` : ''}`
+            })()}
+            mono
+          />
         </dl>
       </Card>
       <Section

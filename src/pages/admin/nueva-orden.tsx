@@ -18,6 +18,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { fmtDate, HOY } from '@/lib/dates'
 import { openOrder } from '@/lib/domain'
+import { esTemporal } from '@/lib/sin-conexion'
 import { useApp } from '@/lib/store'
 import { useEnvio } from '@/lib/use-envio'
 import type { DB } from '@/lib/types'
@@ -65,7 +66,11 @@ export default function NuevaOrdenPage() {
         recibio,
         fotos,
       })
-      toast.success(`Orden ${n} creada`)
+      toast.success(
+        esTemporal(n)
+          ? 'Orden creada sin conexión; se enviará cuando vuelva el internet'
+          : `Orden ${n} creada`,
+      )
       navigate(`/admin/ordenes/${n}`)
     })
   }
@@ -159,7 +164,7 @@ export default function NuevaOrdenPage() {
         </Field>
         <DropZone
           id="no-up"
-          label="Fotos de ingreso (opcional: también puedes agregarlas después, antes del diagnóstico)"
+          label="Fotos de ingreso (opcional)"
           onFiles={files.handle}
           error={files.error}
           onSample={() => setFotos((f) => [...f, sampleImage()])}

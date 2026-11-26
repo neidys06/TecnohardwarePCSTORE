@@ -20,6 +20,7 @@ import NuevaOrdenPage from '@/pages/admin/nueva-orden'
 import OrdenDetallePage from '@/pages/admin/orden-detalle'
 import OrdenesPage from '@/pages/admin/ordenes'
 import PreciosPage from '@/pages/admin/precios'
+import ReciboPage from '@/pages/admin/recibo'
 import RegistrarMantenimientoPage from '@/pages/admin/registrar-mantenimiento'
 import LoginPage from '@/pages/auth/login'
 import PrimerIngresoPage from '@/pages/auth/primer-ingreso'
@@ -59,6 +60,8 @@ export const routes: RouteObject[] = [
         path: 'admin',
         element: <RequireRole role="admin" />,
         children: [
+          // Recibo de entrega: página sola, sin el menú, para imprimirla.
+          { path: 'recibo/:id', element: <ReciboPage /> },
           {
             element: <AdminLayout />,
             children: [

@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { digits, fmtDate, HOY, money } from '@/lib/dates'
-import { equipoDe, totalOrden } from '@/lib/domain'
+import { equipoDe, totalOrden, trabajoAutorizado } from '@/lib/domain'
 import { useApp } from '@/lib/store'
 import { useEnvio } from '@/lib/use-envio'
 import NotFound from '@/pages/not-found'
@@ -20,7 +20,11 @@ export default function RegistrarMantenimientoPage() {
   const { db, acciones, sesion } = useApp()
   const { enviando, enviar } = useEnvio()
   const navigate = useNavigate()
-  const [t, setT] = React.useState('')
+  // Acta 6: «¿Qué se hizo?» parte de lo que el cliente autorizó, para no volver a escribirlo.
+  const [t, setT] = React.useState(() => {
+    const o0 = db.ordenes.find((x) => x.id === id)
+    return o0 ? trabajoAutorizado(o0) : ''
+  })
   const [rep, setRep] = React.useState<[string, number][]>([])
   const [rn, setRn] = React.useState('')
   const [rq, setRq] = React.useState('1')
@@ -56,7 +60,6 @@ export default function RegistrarMantenimientoPage() {
   const submit = () => {
     const er: typeof err = {}
     if (t.trim().length < 10) er.t = 'Describe el trabajo realizado (mínimo 10 caracteres).'
-    if (!fotos.length) er.f = 'Las fotos de salida son obligatorias. Adjunta al menos una.'
     setErr(er)
     if (Object.keys(er).length) return
     enviar(async () => {
@@ -80,7 +83,13 @@ export default function RegistrarMantenimientoPage() {
       />
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <Card className="flex flex-col gap-5">
-          <Field id="rm-t" label="¿Qué se hizo?" required error={err.t}>
+          <Field
+            id="rm-t"
+            label="¿Qué se hizo?"
+            help="Ya viene con lo que el cliente autorizó en el diagnóstico. Ajústalo solo si hiciste algo distinto."
+            required
+            error={err.t}
+          >
             <Textarea
               id="rm-t"
               rows={4}
@@ -155,8 +164,7 @@ export default function RegistrarMantenimientoPage() {
           </div>
           <DropZone
             id="rm-up"
-            label="Fotos de salida"
-            required
+            label="Fotos de salida (opcional)"
             onFiles={files.handle}
             error={err.f || files.error}
             onSample={() => setFotos((f) => [...f, sampleImage()])}

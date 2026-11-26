@@ -19,6 +19,7 @@ import { ago, digits, money } from '@/lib/dates'
 import {
   adicionalPendiente,
   clienteDeOrden,
+  cuentaCliente,
   equipoDe,
   missingEvidence,
   totalOrden,
@@ -239,9 +240,9 @@ export function AdicionalDialog({ id }: { id: string }) {
 
 type Momento = 'ingreso' | 'proceso' | 'salida'
 const AYUDA: Record<Momento, string> = {
-  ingreso: 'Obligatoria. Muestra cómo llegó el equipo, antes de abrirlo.',
+  ingreso: 'Opcional. Muestra cómo llegó el equipo, antes de abrirlo.',
   proceso: 'Opcional. Registra lo que se va haciendo: piezas, daños encontrados, pruebas.',
-  salida: 'Obligatoria. Muestra cómo se entrega el equipo.',
+  salida: 'Opcional. Muestra cómo se entrega el equipo.',
 }
 
 export function EvidenciaDialog({ id, tipo: t0 }: { id: string; tipo?: string }) {
@@ -341,16 +342,30 @@ export function EvidenciaDialog({ id, tipo: t0 }: { id: string; tipo?: string })
 
 export function EntregarDialog({ id }: { id: string }) {
   const { db, acciones, closeDialog } = useApp()
+  const navigate = useNavigate()
   const { enviando, enviar } = useEnvio()
   const o = db.ordenes.find((x) => x.id === id)
   const [r, setR] = React.useState(() => (o ? clienteDeOrden(db, o).nombre : ''))
   const [quien, setQuien] = React.useState('')
+  // Acta 6: los demás equipos del mismo cliente que ya están listos se pueden entregar y
+  // cobrar en el mismo pago (cuenta única). Por defecto van marcados.
+  const otrasListas = o
+    ? cuentaCliente(db, clienteDeOrden(db, o).id).listas.filter((x) => x.id !== o.id)
+    : []
+  const [junto, setJunto] = React.useState<string[]>(() => otrasListas.map((x) => x.id))
   if (!o) return null
   const falta = missingEvidence(o).length > 0
+  const seleccion = [o, ...otrasListas.filter((x) => junto.includes(x.id))]
+  const total = seleccion.reduce((s, x) => s + totalOrden(x), 0)
+  const pendientes = cuentaCliente(db, clienteDeOrden(db, o).id).ordenes.filter(
+    (x) => x.estado !== 'fin',
+  )
   return (
     <Modal
-      title="Marcar como entregada"
-      description={`Orden ${id}`}
+      title={
+        seleccion.length > 1 ? `Entregar ${seleccion.length} equipos` : 'Marcar como entregada'
+      }
+      description={seleccion.map((x) => x.id).join(' · ')}
       size="sm"
       footer={
         <>
@@ -359,14 +374,26 @@ export function EntregarDialog({ id }: { id: string }) {
             disabled={falta || !r.trim() || !quien || enviando}
             onClick={() =>
               enviar(async () => {
-                await acciones.entregar(id, r.trim(), quien)
+                if (seleccion.length > 1)
+                  await acciones.entregarVarias(
+                    seleccion.map((x) => x.id),
+                    r.trim(),
+                    quien,
+                  )
+                else await acciones.entregar(id, r.trim(), quien)
                 closeDialog()
-                toast.success('Orden entregada')
+                // Se hace el recibo de la entrega (uno o varios equipos, cuenta única).
+                navigate(`/admin/recibo/${id}`)
+                toast.success(
+                  seleccion.length > 1
+                    ? `${seleccion.length} órdenes entregadas`
+                    : 'Orden entregada',
+                )
               })
             }
           >
             <PackageCheck />
-            Confirmar entrega
+            Confirmar entrega · {money(total)}
           </Button>
         </>
       }
@@ -375,6 +402,42 @@ export function EntregarDialog({ id }: { id: string }) {
         <Notice tone="warning" title="Faltan las fotos de salida">
           Adjúntalas antes de confirmar la entrega.
         </Notice>
+      )}
+      {otrasListas.length > 0 && (
+        <fieldset className="flex flex-col gap-2 rounded-lg border p-3">
+          <legend className="px-1 text-[14px] font-medium">
+            Cuenta única: otros equipos listos de este cliente
+          </legend>
+          {otrasListas.map((x) => (
+            <label key={x.id} className="flex items-center gap-3 text-[15px]">
+              <input
+                type="checkbox"
+                className="size-4 accent-[var(--brand)]"
+                checked={junto.includes(x.id)}
+                onChange={(e) =>
+                  setJunto((j) => (e.target.checked ? [...j, x.id] : j.filter((k) => k !== x.id)))
+                }
+              />
+              <span className="min-w-0 flex-1">
+                {equipoDe(db, x.eq).nombre} <span className="text-muted-foreground">({x.id})</span>
+              </span>
+              <span className="tnum">{money(totalOrden(x))}</span>
+            </label>
+          ))}
+        </fieldset>
+      )}
+      <div className="flex items-baseline justify-between rounded-lg bg-secondary px-4 py-3">
+        <span className="text-ink-2">Total a pagar ahora</span>
+        <span className="text-xl font-semibold tnum">{money(total)}</span>
+      </div>
+      {pendientes.length > 0 && (
+        <p className="text-[14px] text-muted-foreground">
+          El cliente tiene{' '}
+          {pendientes.length === 1 ? 'otro equipo' : `${pendientes.length} equipos más`} en el
+          taller que aún no está{pendientes.length === 1 ? '' : 'n'} listo
+          {pendientes.length === 1 ? '' : 's'}; se cobra{pendientes.length === 1 ? '' : 'n'} al
+          entregarlo{pendientes.length === 1 ? '' : 's'}.
+        </p>
       )}
       <Field id="en-q" label="Entregado por" required>
         <Select value={quien} onValueChange={setQuien}>

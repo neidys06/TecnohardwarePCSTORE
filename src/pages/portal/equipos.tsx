@@ -11,13 +11,16 @@ import {
 } from '@/components/app/ui-kit'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { money } from '@/lib/dates'
 import {
+  cuentaCliente,
   ESTADOS,
   equipoDe,
   lastService,
   openOrder,
   orderDate,
   semaforo,
+  totalOrden,
   trabajoDe,
 } from '@/lib/domain'
 import { TIENDA } from '@/lib/seed'
@@ -35,6 +38,8 @@ export default function PortalEquiposPage() {
     .map((e) => ({ e, s: semaforo(db, e) }))
     .filter(({ s }) => s.k === 'Vencido' || s.k === 'Próximo')
   const waLink = `https://wa.me/57${TIENDA.whatsapp.replace(/\D/g, '')}`
+  // Acta 6: lo que el cliente debe de todos sus equipos sin entregar, en una sola cuenta.
+  const cuenta = cuentaCliente(db, yo)
 
   return (
     <>
@@ -62,6 +67,31 @@ export default function PortalEquiposPage() {
           Escríbenos por WhatsApp al {TIENDA.whatsapp} para agendarlo.
         </Notice>
       ))}
+      {cuenta.ordenes.length > 1 && (
+        <Card className="flex flex-col gap-3">
+          <h2 className="text-[17px] font-semibold">Tu cuenta</h2>
+          <ul className="flex flex-col gap-2">
+            {cuenta.ordenes.map((o) => (
+              <li key={o.id} className="flex items-baseline justify-between gap-3">
+                <span className="min-w-0 truncate">
+                  {equipoDe(db, o.eq).nombre}{' '}
+                  <span className="text-muted-foreground">· {ESTADOS[o.estado].label}</span>
+                </span>
+                <span className="shrink-0 tnum">
+                  {o.costo == null ? 'Por definir' : money(totalOrden(o))}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex items-baseline justify-between border-t pt-3">
+            <span className="text-ink-2">Total a pagar</span>
+            <span className="text-xl font-semibold tnum">{money(cuenta.total)}</span>
+          </div>
+          <p className="text-[14px] text-muted-foreground">
+            Puedes pagar todo junto cuando recojas tus equipos.
+          </p>
+        </Card>
+      )}
       {abiertas.length > 0 && (
         <Section title={abiertas.length === 1 ? 'Orden en curso' : 'Órdenes en curso'}>
           {abiertas.map((o) => {
