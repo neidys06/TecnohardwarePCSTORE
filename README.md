@@ -78,7 +78,8 @@ src/
 ├── dialogs/           Todos los diálogos; se abren con openDialog(tipo, parámetros)
 ├── lib/
 │   ├── types.ts       Modelo de datos
-│   ├── domain.ts      Reglas: estados, semáforo de mantenimiento, evidencias obligatorias
+│   ├── domain.ts      Reglas: estados, semáforo de mantenimiento, cuenta única por cliente
+│   ├── sin-conexion.ts Uso sin conexión: cola de cambios en IndexedDB y sincronización (Acta 6)
 │   ├── seed.ts        Datos de ejemplo
 │   ├── store.tsx      Estado global, sesión y carga desde la API
 │   ├── acciones.ts    Capa de datos: cada acción en modo prototipo o contra la API
@@ -116,9 +117,12 @@ Un cliente que intenta abrir `/admin/*` es enviado a `/portal/acceso-denegado`; 
 
 - **Estados de la orden:** En diagnóstico → Pendiente de autorización → Autorizada (o En espera de autorización adicional) → Finalizada → Entregada. Si el cliente no autoriza, se cierra cobrando solo el diagnóstico general.
 - **Tablero:** muestra solo órdenes en curso; las entregadas y cerradas se consultan en «Todas las órdenes».
-- **Evidencias:** fotos de **ingreso** y **salida** obligatorias (sin ellas no se pide autorización ni se entrega); fotos **durante el servicio** opcionales y con una nota.
+- **Evidencias (Acta 6):** todas las fotos son opcionales: de ingreso, del diagnóstico o durante el servicio (con una nota) y de salida.
+- **Trabajo realizado (Acta 6):** al registrar el mantenimiento, «¿Qué se hizo?» ya viene con lo que el cliente autorizó (diagnóstico y adicionales aprobados).
+- **Cuenta única (Acta 6):** lo que un cliente debe de todos sus equipos sin entregar se suma en una sola cuenta; los equipos listos se pueden entregar y cobrar juntos (`POST /api/ordenes/entrega-conjunta`). Al entregar se abre el **recibo de entrega** con todos los equipos que se recogen y el total pagado; se imprime o se envía en PDF por WhatsApp, y se puede volver a abrir desde la orden (formato provisional hasta recibir la plantilla de la empresa).
+- **Sin conexión (Acta 6):** si el local se queda sin internet, el panel sigue abriendo (service worker, solo en HTTPS o `localhost`) y se pueden registrar clientes, equipos, órdenes, diagnósticos, fotos, mantenimientos y entregas; se guardan en una cola y se envían solos al volver la conexión. El usuario y la contraseña de los clientes registrados así quedan en «Acceso por enviar».
 - **Semáforo de mantenimiento:** Vencido, Próximo (por defecto 30 días o menos, configurable), Vigente o Sin periodo. El color siempre va acompañado de texto.
-- **Mensajes:** los de WhatsApp y los recordatorios se pueden editar antes de enviarlos; la plantilla de recordatorio es editable y admite `{nombre}`, `{equipo}`, `{estado}` y `{fecha}`.
+- **Mensajes:** todos los de WhatsApp (diagnóstico, adicional, equipo listo, usuario y contraseña) y los recordatorios se pueden editar antes de enviarlos; la plantilla de recordatorio es editable y admite `{nombre}`, `{equipo}`, `{estado}` y `{fecha}`.
 
 ## Diseño responsivo
 
