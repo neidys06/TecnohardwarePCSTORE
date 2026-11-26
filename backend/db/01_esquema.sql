@@ -175,15 +175,14 @@ CREATE TABLE evidencia (
   ruta_archivo  VARCHAR(255) NOT NULL COMMENT 'Ruta del archivo dentro de la carpeta de archivos (nombre aleatorio)',
   tipo_mime     VARCHAR(20)  NOT NULL COMMENT 'image/jpeg o image/png, verificado por el contenido del archivo',
   tamano_bytes  BIGINT       NOT NULL COMMENT 'Tamaño del archivo; máximo 5 MB',
-  nota          VARCHAR(500) NULL COMMENT 'Qué se está haciendo; obligatoria en PROCESO (Acta 4)',
+  nota          VARCHAR(500) NULL COMMENT 'Qué se está haciendo (opcional, Reunión 7)',
   fecha_carga   DATETIME(6)  NOT NULL COMMENT 'Fecha y hora en que se adjuntó',
   PRIMARY KEY (id_evidencia),
   CONSTRAINT uk_evidencia_ruta UNIQUE (ruta_archivo),
   KEY ix_evidencia_orden (id_orden, momento),
   CONSTRAINT fk_evidencia_orden FOREIGN KEY (id_orden) REFERENCES orden_servicio (id_orden) ON DELETE CASCADE,
   CONSTRAINT ck_evi_mime   CHECK (tipo_mime IN ('image/jpeg', 'image/png')),
-  CONSTRAINT ck_evi_tamano CHECK (tamano_bytes BETWEEN 1 AND 5242880),
-  CONSTRAINT ck_evi_nota   CHECK (momento <> 'PROCESO' OR CHAR_LENGTH(TRIM(COALESCE(nota, ''))) >= 5)
+  CONSTRAINT ck_evi_tamano CHECK (tamano_bytes BETWEEN 1 AND 5242880)
 ) ENGINE=InnoDB COMMENT='Fotografías de ingreso, proceso y salida. RF-08';
 
 -- -----------------------------------------------------------------------------
