@@ -91,8 +91,8 @@ public class OrdenService {
     // ----- RF-04 · Nueva orden -----------------------------------------------------------
 
     /**
-     * Nueva orden con la falla reportada y quién de la tienda recibió el equipo. Las fotos de
-     * ingreso pueden adjuntarse ahora o después, pero antes del diagnóstico (Acta 5).
+     * Nueva orden con la falla reportada y quién de la tienda recibió el equipo. Desde el Acta 6
+     * las fotografías son opcionales en todo el proceso (la interfaz ya no pide foto de ingreso).
      */
     @Transactional
     public OrdenDTO crear(Long idEquipo, String falla, String accesorios, LocalDate fechaIngreso, String recibio,
@@ -132,9 +132,6 @@ public class OrdenService {
     public OrdenDTO registrarDiagnostico(String codigo, DiagnosticoRequest r, Long idUsuario) {
         OrdenServicio o = bloquear(codigo);
         o.exigirEstado(EstadoOrden.EN_DIAGNOSTICO);
-        if (!o.tieneEvidencia(MomentoEvidencia.INGRESO)) {
-            throw new ReglaDeNegocioException("Antes de pedir la autorización adjunta las fotos de ingreso.");
-        }
         o.setDiagnostico(r.diagnostico().trim());
         o.setCostoEstimado(r.costo());
         o.getAutorizaciones().add(new Autorizacion(o, TipoAutorizacion.INICIAL, null, r.costo(), ahora()));
@@ -226,7 +223,9 @@ public class OrdenService {
     // ----- RF-07 · Mantenimiento realizado -----------------------------------------------
 
     /**
-     * Trabajo realizado, repuestos y fotos de salida obligatorias → «Finalizada».
+     * Trabajo realizado, repuestos y fotos de salida opcionales (Acta 6) → «Finalizada».
+     * Si no llega el trabajo, se registra lo que el cliente autorizó: el diagnóstico y los
+     * adicionales aprobados (Acta 6: no repetir lo que ya se escribió en el diagnóstico).
      * El servicio lo hace una sola persona (Reunión 5): si no llega «responsable», se registra
      * automáticamente el nombre de la cuenta que guarda el mantenimiento.
      */
@@ -235,6 +234,9 @@ public class OrdenService {
             String repuestosJson, List<MultipartFile> fotos, Long idUsuario) {
         String trabajoLimpio = trabajo == null ? "" : trabajo.trim();
         String responsableLimpio = responsable == null ? "" : responsable.trim();
+        if (trabajoLimpio.isEmpty()) {
+            trabajoLimpio = buscar(codigo).trabajoAutorizado();
+        }
         if (trabajoLimpio.length() < 10 || trabajoLimpio.length() > 4000) {
             throw new ReglaDeNegocioException("Describe el trabajo realizado (entre 10 y 4000 caracteres).", "trabajo",
                     "Entre 10 y 4000 caracteres.");
@@ -252,9 +254,6 @@ public class OrdenService {
             responsableLimpio = usuario(idUsuario).getNombre();
         }
         guardarFotos(o, MomentoEvidencia.SALIDA, imagenes, null);
-        if (!o.tieneEvidencia(MomentoEvidencia.SALIDA)) {
-            throw new ReglaDeNegocioException("Las fotos de salida son obligatorias. Adjunta al menos una.");
-        }
         Mantenimiento m = new Mantenimiento(o, trabajoLimpio, responsableLimpio,
                 fecha == null ? LocalDate.now(reloj) : fecha);
         repuestos.forEach(rep -> m.agregarRepuesto(rep.nombre().trim(), rep.cantidad()));

@@ -24,14 +24,18 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import co.tecnihardware.st.dto.AdicionalRequest;
+import co.tecnihardware.st.dto.CuentaClienteDTO;
 import co.tecnihardware.st.dto.DecisionRequest;
 import co.tecnihardware.st.dto.DiagnosticoRequest;
+import co.tecnihardware.st.dto.EntregaConjuntaDTO;
+import co.tecnihardware.st.dto.EntregaConjuntaRequest;
 import co.tecnihardware.st.dto.EntregaRequest;
 import co.tecnihardware.st.dto.NotaRequest;
 import co.tecnihardware.st.dto.OrdenDTO;
 import co.tecnihardware.st.model.EstadoOrden;
 import co.tecnihardware.st.model.MomentoEvidencia;
 import co.tecnihardware.st.security.UsuarioPrincipal;
+import co.tecnihardware.st.service.CuentaClienteService;
 import co.tecnihardware.st.service.OrdenService;
 
 @RestController
@@ -42,7 +46,10 @@ public class OrdenController {
 
     private final OrdenService ordenes;
 
-    public OrdenController(OrdenService ordenes) {
+    private final CuentaClienteService cuentas;
+
+    public OrdenController(OrdenService ordenes, CuentaClienteService cuentas) {
+        this.cuentas = cuentas;
         this.ordenes = ordenes;
     }
 
@@ -108,11 +115,11 @@ public class OrdenController {
         return ordenes.agregarEvidencias(codigo, momento, nota, fotos);
     }
 
-    @Operation(summary = "Registrar el mantenimiento realizado (RF-07)", description = "Las fotos de salida son obligatorias. Pasa a «Finalizada».")
+    @Operation(summary = "Registrar el mantenimiento realizado (RF-07)", description = "Fotos de salida opcionales (Acta 6). Pasa a «Finalizada».")
     @PostMapping(path = "/{codigo}/mantenimiento", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public OrdenDTO mantenimiento(@PathVariable String codigo,
-            @RequestParam("trabajo") String trabajo,
+            @Parameter(description = "Si se omite, se registra lo que el cliente autorizó (diagnóstico y adicionales).") @RequestParam(name = "trabajo", required = false) String trabajo,
             @RequestParam(name = "responsable", required = false) String responsable,
             @RequestParam(name = "fecha", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
             @Parameter(description = "JSON: [{\"nombre\":\"SSD 480 GB\",\"cantidad\":1}]") @RequestParam(name = "repuestos", required = false) String repuestos,
@@ -126,6 +133,19 @@ public class OrdenController {
     public OrdenDTO entrega(@PathVariable String codigo, @Valid @RequestBody EntregaRequest r,
             @AuthenticationPrincipal UsuarioPrincipal yo) {
         return ordenes.entregar(codigo, r.recibidoPor(), r.entregadoPor(), yo.getId());
+    }
+
+    @Operation(summary = "Cuenta única del cliente (Acta 6)", description = "Órdenes sin entregar del cliente y el total a pagar.")
+    @GetMapping("/cuenta")
+    public CuentaClienteDTO cuenta(@RequestParam("idCliente") Long idCliente) {
+        return cuentas.cuenta(idCliente);
+    }
+
+    @Operation(summary = "Entregar varios equipos del mismo cliente en un solo pago (Acta 6)")
+    @PostMapping("/entrega-conjunta")
+    public EntregaConjuntaDTO entregaConjunta(@Valid @RequestBody EntregaConjuntaRequest r,
+            @AuthenticationPrincipal UsuarioPrincipal yo) {
+        return cuentas.entregar(r.codigos(), r.recibidoPor(), r.entregadoPor(), yo.getId());
     }
 
     @Operation(summary = "Anotar en el historial sin cambiar el estado")

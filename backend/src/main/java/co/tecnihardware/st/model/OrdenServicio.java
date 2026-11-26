@@ -179,6 +179,24 @@ public class OrdenServicio {
         return total;
     }
 
+    /**
+     * Lo que el cliente autorizó (Acta 6): el diagnóstico y, si los hubo, los adicionales
+     * aprobados. Es el texto que se propone como «trabajo realizado» al registrar el mantenimiento.
+     */
+    public String trabajoAutorizado() {
+        StringBuilder texto = new StringBuilder(diagnostico == null ? "" : diagnostico.trim());
+        for (Autorizacion a : autorizaciones) {
+            if (a.getTipo() == TipoAutorizacion.ADICIONAL && a.getDecision() == DecisionCliente.AUTORIZA
+                    && a.getDescripcion() != null && !a.getDescripcion().isBlank()) {
+                if (texto.length() > 0 && !texto.toString().endsWith(".")) {
+                    texto.append('.');
+                }
+                texto.append(texto.length() > 0 ? " Adicional: " : "Adicional: ").append(a.getDescripcion().trim());
+            }
+        }
+        return texto.toString();
+    }
+
     public boolean tieneEvidencia(MomentoEvidencia momento) {
         return evidencias.stream().anyMatch(e -> e.getMomento() == momento);
     }
