@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { CircleUserRound, Laptop, LogOut, Tag } from 'lucide-react'
 
 import { Logo } from '@/components/app/brand'
+import { BotonNavidad, ModoNavidad } from '@/components/app/navidad'
 import { UserAvatar } from '@/components/app/ui-kit'
 import { TabBar } from '@/components/layout/admin-layout'
 import { Button } from '@/components/ui/button'
@@ -25,6 +26,7 @@ export function PortalLayout() {
   }
   return (
     <div className="min-h-dvh">
+      <ModoNavidad />
       <header className="sticky top-0 z-30 hidden border-b bg-card md:block">
         <div className="mx-auto flex h-[72px] w-full max-w-[1120px] items-center gap-2 px-6 lg:px-8">
           <Link to="/portal/equipos" aria-label="Inicio" className="mr-4">
@@ -50,6 +52,7 @@ export function PortalLayout() {
             ))}
           </nav>
           <div className="flex items-center gap-3">
+            <BotonNavidad />
             <UserAvatar name={me?.nombre ?? ''} photo={db.fotoCliente} size={36} />
             <span className="hidden text-[15px] font-medium lg:inline">{me?.nombre ?? ''}</span>
             <Button variant="secondary" size="sm" onClick={salir}>
@@ -64,6 +67,7 @@ export function PortalLayout() {
           <Logo size="sm" />
         </Link>
         <div className="flex-1" />
+        <BotonNavidad compacto />
         <Link to="/portal/cuenta" aria-label="Mi cuenta" className="pr-1">
           <UserAvatar name={me?.nombre ?? ''} photo={db.fotoCliente} size={36} />
         </Link>
