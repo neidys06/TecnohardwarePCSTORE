@@ -167,11 +167,11 @@ class FlujoCompletoIntegracionTest {
         o = postJson("/api/ordenes/" + codigo + "/adicionales/respuesta", admin, Map.of("decision", "AUTORIZA"), 200);
         assertThat(o.get("estado").asText()).isEqualTo("AUTORIZADA");
 
-        // Foto de la reparación sin nota → rechazada (Acta 4)
+        // Foto de la reparación sin nota → aceptada: la descripción es opcional (Reunión 7)
         mvc.perform(multipart("/api/ordenes/" + codigo + "/evidencias")
                 .file(new MockMultipartFile("fotos", "p.png", "image/png", PNG))
                 .param("momento", "PROCESO").with(csrf()).cookie(admin))
-                .andExpect(status().isUnprocessableEntity());
+                .andExpect(status().isCreated());
 
         // Trabajo realizado demasiado corto → rechazado (RF-07)
         mvc.perform(multipart("/api/ordenes/" + codigo + "/mantenimiento")
