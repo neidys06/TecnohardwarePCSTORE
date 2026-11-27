@@ -418,7 +418,8 @@ export function EntregarDialog({ id }: { id: string }) {
                 }
               />
               <span className="min-w-0 flex-1">
-                {equipoDe(db, x.eq).nombre} <span className="text-muted-foreground">({x.id})</span>
+                {nombreEquipo(equipoDe(db, x.eq))}{' '}
+                <span className="text-muted-foreground">({x.id})</span>
               </span>
               <span className="tnum">{money(totalOrden(x))}</span>
             </label>

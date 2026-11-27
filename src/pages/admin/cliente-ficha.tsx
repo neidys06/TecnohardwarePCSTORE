@@ -7,7 +7,14 @@ import { Chip, Empty, KV, PageHeader, Section } from '@/components/app/ui-kit'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { fmtLong, money, parseDate } from '@/lib/dates'
-import { cuentaCliente, equipoDe, lastService, orderDate, trabajoDe } from '@/lib/domain'
+import {
+  nombreEquipo,
+  cuentaCliente,
+  equipoDe,
+  lastService,
+  orderDate,
+  trabajoDe,
+} from '@/lib/domain'
 import { traducir } from '@/lib/sin-conexion'
 import { useApp } from '@/lib/store'
 import NotFound from '@/pages/not-found'
@@ -103,7 +110,9 @@ export default function ClienteFichaPage() {
         </div>
         {l && (
           <div className="rounded-xl bg-foreground p-5 text-background">
-            <p className="text-[14px] opacity-75">Última intervención · {equipoDe(db, f).nombre}</p>
+            <p className="text-[14px] opacity-75">
+              Última intervención · {nombreEquipo(equipoDe(db, f))}
+            </p>
             <p className="mt-1 text-[22px] leading-8 font-semibold tnum">
               {orderDate(l)} · {trabajoDe(l)}
             </p>

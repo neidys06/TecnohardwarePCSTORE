@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { money } from '@/lib/dates'
 import {
+  nombreEquipo,
   cuentaCliente,
   ESTADOS,
   equipoDe,
@@ -74,7 +75,7 @@ export default function PortalEquiposPage() {
             {cuenta.ordenes.map((o) => (
               <li key={o.id} className="flex items-baseline justify-between gap-3">
                 <span className="min-w-0 truncate">
-                  {equipoDe(db, o.eq).nombre}{' '}
+                  {nombreEquipo(equipoDe(db, o.eq))}{' '}
                   <span className="text-muted-foreground">· {ESTADOS[o.estado].label}</span>
                 </span>
                 <span className="shrink-0 tnum">

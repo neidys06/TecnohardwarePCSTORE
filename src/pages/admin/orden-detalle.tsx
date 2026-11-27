@@ -208,7 +208,7 @@ function CuentaUnica({ o }: { o: Orden }) {
         {cuenta.ordenes.map((x) => (
           <li key={x.id} className="flex items-baseline justify-between gap-3 text-[15px]">
             <Link to={`/admin/ordenes/${x.id}`} className="min-w-0 truncate hover:underline">
-              {equipoDe(db, x.eq).nombre}{' '}
+              {nombreEquipo(equipoDe(db, x.eq))}{' '}
               <span className={cn('text-muted-foreground', x.id === o.id && 'font-medium')}>
                 ({x.id})
               </span>

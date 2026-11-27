@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select'
 import { digits, money } from '@/lib/dates'
 import {
+  equipoEnTexto,
   adicionalPendiente,
   AVISO_LISTO,
   clienteDe,
@@ -395,7 +396,7 @@ export function WhatsAppDialog({ cid, oid }: { cid: string; oid?: string }) {
   const nombre = c.nombre.split(' ')[0]
   const pend = o && adicionalPendiente(o)
   const listo = o?.estado === 'fin'
-  const equipo = o ? equipoDe(db, o.eq).nombre : ''
+  const equipo = o ? equipoEnTexto(equipoDe(db, o.eq)) : ''
   const cuenta = o ? cuentaCliente(db, cid) : null
   const otras = cuenta ? cuenta.ordenes.filter((x) => x.id !== o?.id) : []
   // Acta 6: si el cliente tiene otros equipos sin entregar, el aviso lleva la cuenta única.
@@ -404,7 +405,7 @@ export function WhatsAppDialog({ cid, oid }: { cid: string; oid?: string }) {
       ? ` También tienes ${otras.length === 1 ? 'otro equipo' : `otros ${otras.length} equipos`} con nosotros (${otras
           .map(
             (x) =>
-              `${equipoDe(db, x.eq).nombre}: ${x.costo == null ? 'por definir' : money(totalOrden(x))}`,
+              `${equipoEnTexto(equipoDe(db, x.eq))}: ${x.costo == null ? 'por definir' : money(totalOrden(x))}${x.estado === 'pend' ? ', por autorizar' : ''}`,
           )
           .join(
             '; ',
@@ -415,7 +416,7 @@ export function WhatsAppDialog({ cid, oid }: { cid: string; oid?: string }) {
       ? `Hola ${nombre}, te escribimos de TecniHardware PC Store. ¡Tu ${equipo} ya está listo para recoger! (orden ${o.id}). Trabajo realizado: ${o.trabajo || 'mantenimiento'} Valor a pagar: ${money(totalOrden(o))}.${detalleCuenta} Te esperamos en el ${TIENDA.local} del CC Gran Bulevar.`
       : o.estado === 'espera' && pend
         ? `Hola ${nombre}, te escribimos de TecniHardware PC Store. En tu ${equipo} (orden ${o.id}) encontramos algo más: ${pend.desc} El costo adicional es ${money(pend.costo)}. ¿Nos autorizas a hacerlo?`
-        : `Hola ${nombre}, te escribimos de TecniHardware PC Store. Ya revisamos tu ${equipo} (orden ${o.id}). Diagnóstico: ${o.diag || 'en revisión'} Costo: ${money(o.costo)}.${detalleCuenta} ¿Nos autorizas la reparación?`
+        : `Hola ${nombre}, te escribimos de TecniHardware PC Store. Ya revisamos tu ${equipo} (orden ${o.id}). Diagnóstico: ${o.diag || 'en revisión'} Costo: ${money(o.costo)}.${detalleCuenta} ¿Nos autorizas la reparación de tu ${equipo}?`
     : `Hola ${nombre}, te escribimos de TecniHardware PC Store.`
   const [mensaje, setMensaje] = React.useState(txt)
   const registrar = () =>
