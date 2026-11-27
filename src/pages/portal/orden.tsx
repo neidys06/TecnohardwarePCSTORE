@@ -3,7 +3,7 @@ import { useParams } from 'react-router'
 import { KV, PageHeader, StateBadge, Thumb } from '@/components/app/ui-kit'
 import { Card } from '@/components/ui/card'
 import { money } from '@/lib/dates'
-import { ESTADOS, equipoDe, totalOrden } from '@/lib/domain'
+import { nombreEquipo, ESTADOS, equipoDe, totalOrden } from '@/lib/domain'
 import { TIENDA } from '@/lib/seed'
 import { useApp, useClienteActual } from '@/lib/store'
 import type { Foto } from '@/lib/types'
@@ -42,7 +42,7 @@ export default function PortalOrdenPage() {
       <PageHeader
         back={back}
         title={`Orden ${o.id}`}
-        description={`${e.nombre} · Ingresó el ${o.ingreso}`}
+        description={`${nombreEquipo(e)} · Ingresó el ${o.ingreso}`}
       />
       <Card className="flex flex-col gap-3">
         <div>

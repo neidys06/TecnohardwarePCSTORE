@@ -1,6 +1,6 @@
 import logo from '@/assets/logo-tecnihardware.png'
 import { money } from '@/lib/dates'
-import { reciboDe, trabajoDe } from '@/lib/domain'
+import { nombreEquipo, reciboDe, trabajoDe } from '@/lib/domain'
 import { TIENDA } from '@/lib/seed'
 
 export type Recibo = NonNullable<ReturnType<typeof reciboDe>>
@@ -83,7 +83,7 @@ export async function reciboPdf(r: Recibo): Promise<File> {
   y += 5
   doc.setFontSize(10).setTextColor(0)
   for (const { orden, equipo, valor } of r.ordenes) {
-    const eq = doc.splitTextToSize(equipo.nombre, 46) as string[]
+    const eq = doc.splitTextToSize(nombreEquipo(equipo), 46) as string[]
     const tr = doc.splitTextToSize(trabajoDe(orden), col[3] - col[2] - 28) as string[]
     const filas = Math.max(eq.length + (equipo.serial ? 1 : 0), tr.length)
     if (y + filas * linea > 235) {

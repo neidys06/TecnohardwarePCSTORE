@@ -17,6 +17,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { ago, digits, money } from '@/lib/dates'
 import {
+  nombreEquipo,
   adicionalPendiente,
   clienteDeOrden,
   cuentaCliente,
@@ -100,7 +101,7 @@ export function VistaRapidaDialog({ id }: { id: string }) {
   return (
     <Modal
       title={`Orden ${o.id}`}
-      description={`${c.nombre} · ${e.nombre}`}
+      description={`${c.nombre} · ${nombreEquipo(e)}`}
       footer={
         <>
           {miss.length > 0 && (

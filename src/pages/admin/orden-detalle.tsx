@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { digits, money, thousands } from '@/lib/dates'
 import {
+  nombreEquipo,
   adicionalPendiente,
   avisoListo,
   clienteDeOrden,
@@ -492,7 +493,7 @@ export default function OrdenDetallePage() {
       <PageHeader
         back={{ to: '/admin/ordenes', label: 'Órdenes' }}
         title={esTemporal(o.id) ? 'Orden nueva (sin enviar)' : `Orden ${o.id}`}
-        description={`${e.nombre} · ${c.nombre} · Ingresó el ${o.ingreso}`}
+        description={`${nombreEquipo(e)} · ${c.nombre} · Ingresó el ${o.ingreso}`}
         actions={
           <Button
             variant="whatsapp"

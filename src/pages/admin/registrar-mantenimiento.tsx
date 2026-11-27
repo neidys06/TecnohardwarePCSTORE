@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { digits, fmtDate, HOY, money } from '@/lib/dates'
-import { equipoDe, totalOrden, trabajoAutorizado } from '@/lib/domain'
+import { nombreEquipo, equipoDe, totalOrden, trabajoAutorizado } from '@/lib/domain'
 import { useApp } from '@/lib/store'
 import { useEnvio } from '@/lib/use-envio'
 import NotFound from '@/pages/not-found'
@@ -79,7 +79,7 @@ export default function RegistrarMantenimientoPage() {
       <PageHeader
         back={back}
         title="Registrar mantenimiento"
-        description={`${e.nombre} · Al guardar, la orden pasa a «Finalizada» y queda en el historial del equipo.`}
+        description={`${nombreEquipo(e)} · Al guardar, la orden pasa a «Finalizada» y queda en el historial del equipo.`}
       />
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <Card className="flex flex-col gap-5">

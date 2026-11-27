@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { monthShort, money, parseDate } from '@/lib/dates'
 import {
+  nombreEquipo,
   ESTADOS,
   equipoDe,
   isOpen,
@@ -163,7 +164,7 @@ export function OrdenRow({ o, portal }: { o: Orden; portal?: boolean }) {
       <span className="min-w-0 flex-1">
         <span className="block font-medium">{closed ? trabajoDe(o) : o.falla}</span>
         <span className="block text-[14px] text-muted-foreground">
-          {e.nombre} · {o.id}
+          {nombreEquipo(e)} · {o.id}
           {closed && ` · ${money(o.cobro ?? o.costo)}`}
         </span>
       </span>

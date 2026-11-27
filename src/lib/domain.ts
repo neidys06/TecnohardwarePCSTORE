@@ -142,6 +142,11 @@ export function reciboDe(db: DB, o: Orden) {
     recibidoPor,
   }
 }
+/** Tipo y nombre del equipo, p. ej. «Impresora · Lenovo» (un cliente puede tener varios de la misma marca). */
+export const nombreEquipo = (e: { tipo: string; nombre: string }) => `${e.tipo} · ${e.nombre}`
+/** Igual, dentro de un mensaje: «impresora Lenovo». */
+export const equipoEnTexto = (e: { tipo: string; nombre: string }) =>
+  `${e.tipo.toLowerCase()} ${e.nombre}`
 export const equipoDe = (db: DB, id: string) => db.equipos.find((e) => e.id === id)!
 export const clienteDe = (db: DB, id: string) => db.clientes.find((c) => c.id === id)!
 export const clienteDeOrden = (db: DB, o: Orden) => clienteDe(db, equipoDe(db, o.eq).cliente)

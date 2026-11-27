@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table'
 import { digits, money, norm, parseDate } from '@/lib/dates'
 import {
+  nombreEquipo,
   clienteDeOrden,
   equipoDe,
   ESTADOS,
@@ -75,7 +76,7 @@ export default function OrdenesPage() {
     const e = equipoDe(db, o.eq)
     const c = clienteDeOrden(db, o)
     return (
-      norm(`${o.id} ${c.nombre} ${e.nombre} ${c.cedula}`).includes(norm(q)) ||
+      norm(`${o.id} ${c.nombre} ${nombreEquipo(e)} ${c.cedula}`).includes(norm(q)) ||
       (!!digits(q) && digits(c.cedula).includes(digits(q)))
     )
   }
@@ -237,7 +238,7 @@ export default function OrdenesPage() {
                           </TableCell>
                           <TableCell>
                             <p className="font-medium">{clienteDeOrden(db, o).nombre}</p>
-                            <p className="text-[14px] text-muted-foreground">{e.nombre}</p>
+                            <p className="text-[14px] text-muted-foreground">{nombreEquipo(e)}</p>
                           </TableCell>
                           <TableCell className="tnum">{o.ingreso}</TableCell>
                           <TableCell>

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { money } from '@/lib/dates'
-import { reciboDe, trabajoDe } from '@/lib/domain'
+import { nombreEquipo, equipoEnTexto, reciboDe, trabajoDe } from '@/lib/domain'
 import { nombreArchivoRecibo, reciboPdf, type Recibo } from '@/lib/recibo-pdf'
 import { TIENDA } from '@/lib/seed'
 import { sinConexion, traducir } from '@/lib/sin-conexion'
@@ -28,8 +28,8 @@ function EnviarRecibo({ r, onCerrar }: { r: Recibo; onCerrar: () => void }) {
   const nombre = r.cliente.nombre.split(' ')[0]
   const equipos =
     r.ordenes.length > 1
-      ? `tus ${r.ordenes.length} equipos (${r.ordenes.map((x) => x.equipo.nombre).join(', ')})`
-      : `tu ${r.ordenes[0].equipo.nombre}`
+      ? `tus ${r.ordenes.length} equipos (${r.ordenes.map((x) => equipoEnTexto(x.equipo)).join(', ')})`
+      : `tu ${equipoEnTexto(r.ordenes[0].equipo)}`
   const [mensaje, setMensaje] = React.useState(
     `Hola ${nombre}, te escribimos de TecniHardware PC Store. Te enviamos el recibo de entrega de ${equipos}, ` +
       `con el total pagado de ${money(r.total)}. ¡Gracias por confiar en nosotros!`,
@@ -173,7 +173,7 @@ export default function ReciboPage() {
               <tr key={orden.id} className="border-b align-top">
                 <td className="py-2 pr-3 whitespace-nowrap tnum">{orden.id}</td>
                 <td className="py-2 pr-3">
-                  {equipo.nombre}
+                  {nombreEquipo(equipo)}
                   {equipo.serial && (
                     <span className="block text-[13px] text-muted-foreground">
                       Serial {equipo.serial}

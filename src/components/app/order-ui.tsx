@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ago, money } from '@/lib/dates'
 import {
+  nombreEquipo,
   clienteDeOrden,
   equipoDe,
   isOpen,
@@ -37,7 +38,7 @@ export function OrderCard({ o }: { o: Orden }) {
         </span>
       </span>
       <span className="leading-6 font-semibold">{c.nombre}</span>
-      <span className="text-[14px] leading-5 text-ink-2">{e.nombre}</span>
+      <span className="text-[14px] leading-5 text-ink-2">{nombreEquipo(e)}</span>
       {o.costo != null && (
         <span className="text-[14px] text-ink-2 tnum">
           {o.estado === 'pend' ? 'Por autorizar: ' : 'Valor: '}
@@ -313,7 +314,7 @@ export function OrderSummaryCard({ o, children }: { o: Orden; children?: React.R
         <StateBadge estado={o.estado} />
       </div>
       <dl className="grid gap-3">
-        <KV k="Equipo" v={e.nombre + (e.serial ? ` · ${e.serial}` : '')} />
+        <KV k="Equipo" v={nombreEquipo(e) + (e.serial ? ` · ${e.serial}` : '')} />
         <KV k="Cliente" v={c.nombre + (c.tel ? ` · ${c.tel}` : '')} />
         <KV k="Falla reportada" v={o.falla} />
         {o.recibio && <KV k="Recibido por" v={o.recibio} />}
