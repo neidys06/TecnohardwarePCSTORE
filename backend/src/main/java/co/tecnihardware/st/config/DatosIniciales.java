@@ -76,6 +76,15 @@ public class DatosIniciales implements ApplicationRunner {
                     admin.nombre(), ahora));
             log.warn("Cuenta del Administrador «{}» creada con contraseña TEMPORAL: se pedirá cambiarla al entrar",
                     admin.usuario());
+        } else {
+            // Reunión 8: la cuenta la comparten Gloria y Dichel, así que lleva siempre el nombre
+            // fijo de la tienda (también en las instalaciones que ya existían).
+            usuarios.findByUsuarioAndActivoTrue(admin.usuario())
+                    .filter(u -> u.esAdministrador() && !admin.nombre().equals(u.getNombre()))
+                    .ifPresent(u -> {
+                        u.setNombre(admin.nombre());
+                        log.info("Nombre de la cuenta del Administrador actualizado a «{}»", admin.nombre());
+                    });
         }
     }
 }

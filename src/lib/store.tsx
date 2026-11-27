@@ -91,11 +91,7 @@ const DB_VACIA: DB = {
   listaPdf: null,
 }
 
-const SESION_PROTOTIPO: Sesion = {
-  nombre: 'TecniHardware PC Store',
-  usuario: 'admin',
-  idCliente: 'c1',
-}
+const SESION_PROTOTIPO: Sesion = { nombre: 'Gloria Rojas', usuario: 'admin', idCliente: 'c1' }
 
 type Estado = DB & {
   sesion: { rol: Rol; nombre: string; usuario: string; idCliente: string | null }
@@ -205,7 +201,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         },
         recargar,
         nombreUsuario: () => sesionRef.current.nombre,
-        setNombre: (nombre) => setSesion((s) => ({ ...s, nombre })),
       }),
     [setDb, recargar],
   )

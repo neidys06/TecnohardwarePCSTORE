@@ -1,10 +1,11 @@
 import * as React from 'react'
-import { Check, LogOut } from 'lucide-react'
+import { Camera, Check, LogOut } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { toast } from '@/lib/toast'
 
 import { ColorPicker } from '@/components/app/color-picker'
 import { Field, PageHeader, UserAvatar } from '@/components/app/ui-kit'
+import { useImageFiles } from '@/components/app/photos'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -17,21 +18,20 @@ export default function CuentaPage({ portal }: { portal?: boolean }) {
   const navigate = useNavigate()
   const yo = useClienteActual()
   const me = portal ? (db.clientes.find((c) => c.id === yo) ?? sesion) : sesion
+  const key = portal ? 'fotoCliente' : 'fotoAdmin'
+  const fileRef = React.useRef<HTMLInputElement>(null)
   const [pw, setPw] = React.useState({ a: '', b: '', c: '' })
   const [err, setErr] = React.useState<Partial<Record<'a' | 'b' | 'c', string>>>({})
-  // Reunión 8: la cuenta del Administrador la usan Gloria y Dichel; el nombre se puede editar.
-  const [nombre, setNombre] = React.useState(sesion.nombre)
-  const [errNombre, setErrNombre] = React.useState('')
-  const guardarNombre = (e: React.FormEvent) => {
-    e.preventDefault()
-    const n = nombre.trim().replace(/\s+/g, ' ')
-    if (n.length < 3) return setErrNombre('Escribe al menos 3 caracteres.')
-    setErrNombre('')
-    acciones
-      .cambiarNombre(n)
-      .then(() => toast.success('Nombre actualizado'))
-      .catch((er) => setErrNombre(mensajeError(er)))
-  }
+  const onAdd = React.useCallback(
+    (urls: string[]) => {
+      acciones
+        .guardarFotoPerfil(key, urls[0])
+        .then(() => toast.success('Foto de perfil actualizada'))
+        .catch((e) => toast.error(mensajeError(e)))
+    },
+    [acciones, key],
+  )
+  const foto = useImageFiles(onAdd)
 
   const save = (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,45 +68,35 @@ export default function CuentaPage({ portal }: { portal?: boolean }) {
         title="Mi cuenta"
         description={
           portal
-            ? 'Aquí puedes cambiar tu contraseña.'
-            : 'El nombre de la cuenta, la contraseña de acceso y el color del sistema.'
+            ? 'Aquí puedes cambiar tu foto de perfil y tu contraseña.'
+            : 'Tu foto de perfil, tu contraseña de acceso y el color del sistema.'
         }
       />
       <div className="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
         <Card className="flex flex-col items-center gap-4 text-center">
-          <UserAvatar name={me.nombre} size={96} />
+          <UserAvatar name={me.nombre} size={96} photo={db[key]} />
           <div>
             <p className="text-[18px] font-semibold">{me.nombre}</p>
             <p className="text-muted-foreground">
               {portal ? 'Cliente' : 'Administradora'} · Usuario {me.usuario}
             </p>
           </div>
-          {!portal && (
-            <form
-              className="flex w-full flex-col gap-3 text-left"
-              onSubmit={guardarNombre}
-              noValidate
-            >
-              <Field
-                id="cu-n"
-                label="Nombre que se muestra"
-                error={errNombre}
-                help="La cuenta la usan Gloria y Dichel, por eso conviene un nombre de la tienda."
-              >
-                <Input
-                  id="cu-n"
-                  value={nombre}
-                  maxLength={120}
-                  aria-invalid={!!errNombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                />
-              </Field>
-              <Button type="submit" variant="secondary" disabled={nombre.trim() === sesion.nombre}>
-                <Check />
-                Guardar nombre
-              </Button>
-            </form>
-          )}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/png,image/jpeg"
+            className="sr-only"
+            aria-label="Elegir foto de perfil"
+            onChange={(e) => {
+              if (e.target.files) foto.handle(e.target.files)
+              e.target.value = ''
+            }}
+          />
+          <Button variant="secondary" className="w-full" onClick={() => fileRef.current?.click()}>
+            <Camera />
+            Cambiar foto
+          </Button>
+          {foto.error && <p className="text-[14px] text-destructive">{foto.error}</p>}
           {portal && (
             <div className="w-full rounded-lg bg-secondary p-3.5 text-left text-[14px] text-ink-2">
               <p className="font-medium text-foreground">¿Cambiaste de celular?</p>
