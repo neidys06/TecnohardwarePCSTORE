@@ -28,13 +28,20 @@ function tokenCsrf() {
   return m ? decodeURIComponent(m[1]) : undefined
 }
 
+async function renovarTokenCsrf() {
+  await fetch(BASE + '/auth/sesion', { credentials: 'include', cache: 'no-store' }).catch(() => {})
+}
+
 export async function api<T = unknown>(
   metodo: string,
   ruta: string,
   cuerpo?: Cuerpo,
-  reintento = false,
+  intento = 0,
 ): Promise<T> {
   const init: RequestInit = { method: metodo, credentials: 'include', headers: {} }
+  // Sin la cookie del token (navegador recién abierto, cookie vencida) se pide una antes de
+  // enviar, para que la petición no falle por CSRF (Reunión 7).
+  if (metodo !== 'GET' && !tokenCsrf()) await renovarTokenCsrf()
   const csrf = metodo === 'GET' ? undefined : tokenCsrf()
   if (csrf) (init.headers as Record<string, string>)['X-XSRF-TOKEN'] = csrf
   if (cuerpo instanceof FormData) init.body = cuerpo
@@ -53,12 +60,15 @@ export async function api<T = unknown>(
   }
   if (r.status === 204) return undefined as T
   const datos = await r.json().catch(() => ({}))
-  // Reunión 7: si el token CSRF venció (la página estuvo abierta mucho tiempo), se pide uno
-  // nuevo y se reintenta una vez, en lugar de pedirle al usuario que recargue la página.
-  if (r.status === 403 && metodo !== 'GET' && !reintento && /Recárgala/.test(datos.mensaje ?? '')) {
-    await fetch(BASE + '/auth/sesion', { credentials: 'include' }).catch(() => {})
-    return api<T>(metodo, ruta, cuerpo, true)
+  // Reunión 7: si el token CSRF no coincide (página abierta mucho tiempo, varias pestañas),
+  // se pide uno nuevo y se reintenta solo, sin pedirle al usuario que recargue la página.
+  const esCsrf = r.status === 403 && metodo !== 'GET' && /Recárgala/.test(datos.mensaje ?? '')
+  if (esCsrf && intento < 2) {
+    await renovarTokenCsrf()
+    return api<T>(metodo, ruta, cuerpo, intento + 1)
   }
+  if (esCsrf)
+    throw new ApiError(403, 'No se pudo guardar por un problema de conexión. Inténtalo de nuevo.')
   if (!r.ok)
     // El servidor responde { status, error, mensaje, campos } (ApiError del backend).
     throw new ApiError(
