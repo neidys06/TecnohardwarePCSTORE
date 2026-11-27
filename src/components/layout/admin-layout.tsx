@@ -52,7 +52,7 @@ function useCounts() {
 }
 
 export function AdminLayout() {
-  const { db, openDialog, signOut, sesion } = useApp()
+  const { openDialog, signOut, sesion } = useApp()
   const counts = useCounts()
   const navigate = useNavigate()
   const [q, setQ] = React.useState('')
@@ -116,7 +116,7 @@ export function AdminLayout() {
             Mi cuenta
           </NavLink>
           <div className="mt-2 flex items-center gap-3 rounded-xl border bg-surface-2 p-3">
-            <UserAvatar name={sesion.nombre} photo={db.fotoAdmin} size={36} />
+            <UserAvatar name={sesion.nombre} size={36} />
             <div className="min-w-0">
               <p className="truncate text-[14px] font-semibold">{sesion.nombre}</p>
               <p className="text-[14px] text-muted-foreground">Administradora</p>
@@ -195,7 +195,7 @@ export function AdminLayout() {
           </nav>
           <NotifIcon count={counts.notifs} onClick={() => openDialog('notificaciones')} />
           <Link to="/admin/cuenta" aria-label="Mi cuenta" className="ml-1">
-            <UserAvatar name={sesion.nombre} photo={db.fotoAdmin} />
+            <UserAvatar name={sesion.nombre} />
           </Link>
         </header>
 

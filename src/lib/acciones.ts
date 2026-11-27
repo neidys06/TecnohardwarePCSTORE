@@ -43,6 +43,8 @@ export interface Acciones {
   iniciarSesion(usuario: string, clave: string): Promise<Rol | 'primer-ingreso'>
   crearContrasena(nueva: string, confirmacion: string): Promise<Rol>
   cambiarContrasena(actual: string, nueva: string, confirmacion: string): Promise<void>
+  /** Nombre que se muestra de la cuenta del Administrador (la comparten Gloria y Dichel). */
+  cambiarNombre(nombre: string): Promise<void>
   cerrarSesion(): Promise<void>
   solicitarRestablecimiento(usuario: string): Promise<void>
   guardarCliente(id: string | undefined, d: DatosCliente): Promise<{ id: string; pass?: string }>
@@ -81,6 +83,8 @@ export interface CtxAcciones {
   recargar: () => Promise<void>
   /** Nombre de quien inició sesión (para el historial de lo registrado sin conexión). */
   nombreUsuario?: () => string
+  /** Solo en el prototipo: cambia el nombre de la sesión. */
+  setNombre?: (nombre: string) => void
 }
 
 /** Cuentas del prototipo. En modo API la validación ocurre en el servidor. */
@@ -96,7 +100,7 @@ const decision = (ok: boolean) => (ok ? 'AUTORIZA' : 'NO_AUTORIZA')
 // ---------------------------------------------------------------------------
 // Modo prototipo (datos en el navegador)
 // ---------------------------------------------------------------------------
-function local({ setDb, getDb, setRole }: CtxAcciones): Acciones {
+function local({ setDb, getDb, setRole, setNombre }: CtxAcciones): Acciones {
   const orden = (id: string, patch: Partial<Orden>, nota?: string) =>
     setDb((d) => ({
       ...d,
@@ -126,6 +130,9 @@ function local({ setDb, getDb, setRole }: CtxAcciones): Acciones {
       return 'cliente'
     },
     cambiarContrasena: ok,
+    async cambiarNombre(nombre) {
+      setNombre?.(nombre)
+    },
     async cerrarSesion() {
       setRole(null)
     },
@@ -340,6 +347,10 @@ function remoto(ctx: CtxAcciones): Acciones {
     async cambiarContrasena(actual, nueva, confirmacion) {
       await api('POST', '/auth/cambiar-contrasena', { actual, nueva, confirmacion })
     },
+    async cambiarNombre(nombre) {
+      await api('PUT', '/cuenta/nombre', { nombre })
+      await recargar()
+    },
     async cerrarSesion() {
       await api('POST', '/auth/logout').catch(() => {})
       setRole(null)
@@ -529,6 +540,7 @@ function conCola(r: Acciones, ctx: CtxAcciones, nombreUsuario: () => string): Ac
     subirListaPdf: soloEnLinea(r.subirListaPdf),
     guardarFotoPerfil: soloEnLinea(r.guardarFotoPerfil),
     cambiarContrasena: soloEnLinea(r.cambiarContrasena),
+    cambiarNombre: soloEnLinea(r.cambiarNombre),
     guardarCliente(id, c) {
       if (id)
         return hacer(

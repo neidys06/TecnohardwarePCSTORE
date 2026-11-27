@@ -50,7 +50,7 @@ export function PortalLayout() {
             ))}
           </nav>
           <div className="flex items-center gap-3">
-            <UserAvatar name={me?.nombre ?? ''} photo={db.fotoCliente} size={36} />
+            <UserAvatar name={me?.nombre ?? ''} size={36} />
             <span className="hidden text-[15px] font-medium lg:inline">{me?.nombre ?? ''}</span>
             <Button variant="secondary" size="sm" onClick={salir}>
               <LogOut />
@@ -65,7 +65,7 @@ export function PortalLayout() {
         </Link>
         <div className="flex-1" />
         <Link to="/portal/cuenta" aria-label="Mi cuenta" className="pr-1">
-          <UserAvatar name={me?.nombre ?? ''} photo={db.fotoCliente} size={36} />
+          <UserAvatar name={me?.nombre ?? ''} size={36} />
         </Link>
         <Button variant="plain" size="sm" onClick={salir}>
           <LogOut />
