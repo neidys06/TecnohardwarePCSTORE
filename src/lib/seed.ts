@@ -2,7 +2,7 @@ import { LISTA_EJEMPLO, LISTA_EJEMPLO_BYTES } from './lista-ejemplo'
 import type { Cliente, DB, Equipo, FotoProceso, Orden } from './types'
 
 export const TECNICO = 'Daniel Ortiz'
-export const ADMIN = { nombre: 'TecniHardware PC Store', usuario: 'admin' }
+export const ADMIN = { nombre: 'TECNIHARDWARE PC STORE', usuario: 'admin' }
 export const TIENDA = { local: 'Local 208', whatsapp: '318 786 0122' }
 /** Personal que recibe y entrega los equipos en el local (Acta 5). */
 export const PERSONAL = ['Gloria Rojas Rivera', 'Dichel Susana Rojas Rivera']

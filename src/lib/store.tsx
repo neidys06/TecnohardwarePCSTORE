@@ -91,7 +91,11 @@ const DB_VACIA: DB = {
   listaPdf: null,
 }
 
-const SESION_PROTOTIPO: Sesion = { nombre: 'Gloria Rojas', usuario: 'admin', idCliente: 'c1' }
+const SESION_PROTOTIPO: Sesion = {
+  nombre: 'TECNIHARDWARE PC STORE',
+  usuario: 'admin',
+  idCliente: 'c1',
+}
 
 type Estado = DB & {
   sesion: { rol: Rol; nombre: string; usuario: string; idCliente: string | null }
