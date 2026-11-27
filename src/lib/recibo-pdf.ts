@@ -135,8 +135,8 @@ export async function reciboPdf(r: Recibo): Promise<File> {
       .setTextColor(...gris)
       .text(rol, x, y + 10)
   }
-  firma(r.entregadoPor, 'Entregado por (TecniHardware PC Store)', X)
-  firma(r.recibidoPor, 'Recibido por (quien recoge)', X + W / 2 + 8)
+  firma(r.entregadoPor, 'Entregado por', X)
+  firma(r.recibidoPor, 'Recibido por', X + W / 2 + 8)
   y += 20
   doc
     .setFontSize(8)

@@ -211,11 +211,11 @@ export default function ReciboPage() {
         <div className="grid grid-cols-2 gap-8 pt-10 text-[15px]">
           <div className="border-t pt-2">
             <p className="font-medium">{r.entregadoPor || '—'}</p>
-            <p className="text-muted-foreground">Entregado por (TecniHardware PC Store)</p>
+            <p className="text-muted-foreground">Entregado por</p>
           </div>
           <div className="border-t pt-2">
             <p className="font-medium">{r.recibidoPor || '—'}</p>
-            <p className="text-muted-foreground">Recibido por (quien recoge)</p>
+            <p className="text-muted-foreground">Recibido por</p>
           </div>
         </div>
         <p className="text-[13px] text-muted-foreground">
