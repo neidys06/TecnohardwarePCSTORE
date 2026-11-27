@@ -2,12 +2,16 @@ package co.tecnihardware.st.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -15,18 +19,27 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import co.tecnihardware.st.dto.FotoPerfilDTO;
+import co.tecnihardware.st.dto.NombreRequest;
 import co.tecnihardware.st.security.UsuarioPrincipal;
 import co.tecnihardware.st.service.CuentaService;
 
 @RestController
 @RequestMapping("/api/cuenta")
-@Tag(name = "Cuenta", description = "Foto de perfil")
+@Tag(name = "Cuenta", description = "Nombre que se muestra y foto de perfil")
 public class CuentaController {
 
     private final CuentaService cuentas;
 
     public CuentaController(CuentaService cuentas) {
         this.cuentas = cuentas;
+    }
+
+    @Operation(summary = "Cambiar el nombre que se muestra del Administrador",
+            description = "La cuenta la comparten Gloria y Dichel, por eso se usa un nombre neutro (Reunión 8).")
+    @PutMapping("/nombre")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public void cambiarNombre(@Valid @RequestBody NombreRequest req, @AuthenticationPrincipal UsuarioPrincipal yo) {
+        cuentas.cambiarNombre(yo.getId(), req.nombre());
     }
 
     @Operation(summary = "Cambiar la foto de perfil (JPG o PNG, máximo 5 MB)")

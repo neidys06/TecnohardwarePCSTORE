@@ -30,6 +30,12 @@ public class CuentaService {
     }
 
     @Transactional
+    public void cambiarNombre(Long idUsuario, String nombre) {
+        Usuario u = usuarios.findById(idUsuario).orElseThrow(() -> new RecursoNoEncontradoException("La cuenta"));
+        u.setNombre(nombre.trim().replaceAll("\\s+", " "));
+    }
+
+    @Transactional
     public FotoPerfilDTO guardarFoto(Long idUsuario, MultipartFile foto) {
         if (foto == null || foto.isEmpty()) {
             throw new ReglaDeNegocioException("Selecciona una imagen.");
