@@ -9,12 +9,11 @@ import { Card } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { money } from '@/lib/dates'
 import { reciboDe, trabajoDe } from '@/lib/domain'
-import { descargar, nombreArchivoRecibo, reciboPdf, type Recibo } from '@/lib/recibo-pdf'
+import { nombreArchivoRecibo, reciboPdf, type Recibo } from '@/lib/recibo-pdf'
 import { TIENDA } from '@/lib/seed'
 import { sinConexion, traducir } from '@/lib/sin-conexion'
 import { useApp } from '@/lib/store'
 import { toast } from '@/lib/toast'
-import { enlaceWhatsApp } from '@/lib/whatsapp'
 import NotFound from '@/pages/not-found'
 
 export const RECIBO_ENVIADO = 'Recibo de entrega enviado por WhatsApp (PDF)'
@@ -48,13 +47,6 @@ function EnviarRecibo({ r, onCerrar }: { r: Recibo; onCerrar: () => void }) {
   const registrar = () => {
     for (const { orden } of r.ordenes) acciones.anotar(orden.id, RECIBO_ENVIADO).catch(() => {})
   }
-  const descargarYAbrir = () => {
-    if (!pdf) return
-    descargar(pdf)
-    window.open(enlaceWhatsApp(r.cliente.tel, mensaje), '_blank', 'noopener')
-    registrar()
-    toast.success(`Se descargó ${pdf.name}: adjúntalo en el chat de WhatsApp que se abrió`)
-  }
   const compartir = async () => {
     if (!pdf) return
     try {
@@ -74,7 +66,11 @@ function EnviarRecibo({ r, onCerrar }: { r: Recibo; onCerrar: () => void }) {
         </Notice>
       ) : sinConexion() ? (
         <Notice tone="warning" title="Sin conexión">
-          Puedes descargar el PDF ahora; para enviarlo por WhatsApp hace falta internet.
+          Para enviar el recibo por WhatsApp hace falta internet.
+        </Notice>
+      ) : pdf && !puedeCompartir ? (
+        <Notice tone="warning" title="Este navegador no permite compartir archivos">
+          Abre el sistema desde el celular, o en Chrome o Edge en Windows, para compartir el PDF.
         </Notice>
       ) : null}
       <label className="text-[14px] font-medium text-ink-2" htmlFor="rc-msg">
@@ -82,27 +78,19 @@ function EnviarRecibo({ r, onCerrar }: { r: Recibo; onCerrar: () => void }) {
       </label>
       <Textarea id="rc-msg" rows={3} value={mensaje} onChange={(e) => setMensaje(e.target.value)} />
       <ol className="list-decimal pl-5 text-[14px] text-muted-foreground">
-        <li>Se descarga el archivo {nombreArchivoRecibo(r)} en la carpeta de descargas.</li>
-        <li>Se abre el chat de WhatsApp del cliente con el mensaje escrito.</li>
-        <li>Arrastra el PDF al chat (o usa el clip para adjuntarlo) y envía.</li>
+        <li>Toca «Compartir PDF».</li>
+        <li>
+          Elige WhatsApp y busca el chat del cliente{r.cliente.tel ? ` (${r.cliente.tel})` : ''}.
+        </li>
+        <li>Revisa el mensaje y envía: el PDF {nombreArchivoRecibo(r)} va adjunto.</li>
       </ol>
       <div className="flex flex-wrap justify-end gap-2">
         <Button variant="secondary" onClick={onCerrar}>
           Cerrar
         </Button>
-        {puedeCompartir && r.cliente.tel && (
-          <Button variant="secondary" onClick={compartir}>
-            <Share2 />
-            Compartir PDF
-          </Button>
-        )}
-        <Button
-          variant="whatsapp"
-          disabled={!pdf || !r.cliente.tel || sinConexion()}
-          onClick={descargarYAbrir}
-        >
-          <MessageCircle />
-          {pdf ? 'Descargar PDF y abrir WhatsApp' : 'Preparando el PDF…'}
+        <Button variant="whatsapp" disabled={!puedeCompartir} onClick={compartir}>
+          <Share2 />
+          {pdf ? 'Compartir PDF' : 'Preparando el PDF…'}
         </Button>
       </div>
     </Card>
