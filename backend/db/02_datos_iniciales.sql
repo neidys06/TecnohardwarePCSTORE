@@ -25,5 +25,5 @@ VALUES
 
 -- Cuenta del Administrador (no se autorregistra desde la aplicación).
 INSERT INTO usuario (usuario, contrasena_hash, rol, nombre, debe_cambiar_contrasena, creado_en)
-SELECT 'admin', '$2b$12$ihfoeUrdg1eqg/bnUQlVuOqr4ZQBQZikwQOrmu9RmUftFDUIx26fS', 'ADMINISTRADOR', 'Gloria Rojas', TRUE, NOW(6)
+SELECT 'admin', '$2b$12$ihfoeUrdg1eqg/bnUQlVuOqr4ZQBQZikwQOrmu9RmUftFDUIx26fS', 'ADMINISTRADOR', 'TecniHardware PC Store', TRUE, NOW(6)
  WHERE NOT EXISTS (SELECT 1 FROM usuario WHERE rol = 'ADMINISTRADOR' AND activo);
