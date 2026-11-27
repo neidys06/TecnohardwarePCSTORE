@@ -53,9 +53,16 @@ export default function PortalOrdenPage() {
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <Card className="flex flex-col gap-5">
           <dl className="grid gap-4">
-            <KV k="Falla reportada" v={o.falla} />
-            <KV k="Diagnóstico" v={o.diag || 'En revisión'} />
-            {o.trabajo && <KV k="Trabajo realizado" v={o.trabajo} />}
+            {/* Reunión 7: con el trabajo ya hecho solo se muestra eso, para no repetir lo mismo
+                en la falla, el diagnóstico y el trabajo realizado. */}
+            {o.trabajo ? (
+              <KV k="Trabajo realizado" v={o.trabajo} />
+            ) : (
+              <>
+                <KV k="Falla reportada" v={o.falla} />
+                <KV k="Diagnóstico" v={o.diag || 'En revisión'} />
+              </>
+            )}
           </dl>
           {!!o.repuestos?.length && (
             <div>
